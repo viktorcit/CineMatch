@@ -1,4 +1,5 @@
 ﻿using CineMatch.Data.DTO.MoviesDto;
+using CineMatch.Data.DTO.MoviesDTO;
 using CineMatch.Enums;
 using CineMatch.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ namespace CineMatch.Controllers
 
 
         [HttpGet]
-        public async Task<ActionResult<MovieDto>> GetMovie(string inputUrl)
+        public async Task<ActionResult<MovieDto>> GetMovie(InputFromUserDto dto)
         {
             _logger.LogInformation("попытка найти фильм");
             if (!ModelState.IsValid)
@@ -30,7 +31,7 @@ namespace CineMatch.Controllers
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieService.GetMovieAsync(inputUrl);
+            var result = await _movieService.GetMovieAsync(dto.Input);
 
 
             return result.ErrorType switch

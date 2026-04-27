@@ -24,9 +24,9 @@ namespace CineMatch.Services
 
 
 
-        public async Task<BaseResponseWithDataDto<MovieDto>> GetMovieAsync(string inputUrl)
+        public async Task<BaseResponseWithDataDto<MovieDto>> GetMovieAsync(string input)
         {
-            if (inputUrl == null || string.IsNullOrWhiteSpace(inputUrl))
+            if (input == null || string.IsNullOrWhiteSpace(input))
             {
                 _logger.LogInformation("Ссылка пуста");
                 return new BaseResponseWithDataDto<MovieDto>
@@ -37,11 +37,11 @@ namespace CineMatch.Services
                 };
             }
 
-            if (IsTmdbLink(inputUrl))
+            if (IsTmdbLink(input))
             {
                 try
                 {
-                    var movieId = ExtractIdFromLink(inputUrl);
+                    var movieId = ExtractIdFromLink(input);
                     if (movieId == 0)
                     {
                         _logger.LogInformation("неправильная ссылка");
@@ -53,7 +53,19 @@ namespace CineMatch.Services
                         };
                     }
 
-                    var movieDetails = await GetMovieDetails(movieId);
+                    var contentType = ContentTypeCheck(input);
+                    if (contentType == ContentType.Unknown)
+                    {
+                        _logger.LogInformation("неправильная ссылка");
+                        return new BaseResponseWithDataDto<MovieDto>
+                        {
+                            IsSuccess = false,
+                            ErrorType = ErrorType.BadRequest,
+                            ResponseMessage = "Unsupported TMDb URL format."
+                        };
+                    }
+
+                    var movieDetails = await GetMovieDetails(movieId, contentType);
                     if (movieDetails == null)
                     {
                         _logger.LogInformation("фильм не найден");
@@ -98,6 +110,11 @@ namespace CineMatch.Services
         private int ExtractIdFromLink(string inputUrl)
         {
             var marker = "/movie/";
+            var markerTv = "/tv/";
+            if (inputUrl.Contains(markerTv))
+            {
+                marker = markerTv;
+            }
 
             var index = inputUrl.IndexOf(marker);
 
@@ -120,11 +137,23 @@ namespace CineMatch.Services
 
         private bool IsTmdbLink(string input)
         {
-            if (input.Contains("themoviedb.org/movie/"))
+            if (input.Contains("themoviedb.org/movie/") || input.Contains("themoviedb.org/tv/"))
             {
                 return true;
             }
             return false;
+        }
+        private ContentType ContentTypeCheck(string input)
+        {
+            if (input.Contains("themoviedb.org/movie/"))
+            {
+                return ContentType.movie;
+            }
+            else if (input.Contains("themoviedb.org/tv/"))
+            {
+                return ContentType.tv;
+            }
+            return ContentType.Unknown;
         }
 
         private async Task<MovieDto?> SearchMovie(string title)
@@ -150,7 +179,7 @@ namespace CineMatch.Services
 
             var firstMovie = results[0];
             var titleValue = firstMovie.GetProperty("title").GetString();
-            if(titleValue == null)
+            if (titleValue == null)
             {
                 return null;
             }
@@ -177,9 +206,9 @@ namespace CineMatch.Services
         }
 
 
-        private async Task<MovieDto?> GetMovieDetails(int movieId)
+        private async Task<MovieDto?> GetMovieDetails(int movieId, ContentType type)
         {
-            var url = $"https://api.themoviedb.org/3/movie/{movieId}";
+            var url = $"https://api.themoviedb.org/3/{type}/{movieId}?language=ru-RU";
 
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
@@ -192,27 +221,72 @@ namespace CineMatch.Services
 
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(json);
-            var title = doc.RootElement.GetProperty("title").GetString();
-            if (title == null)
+
+            string? title = null;
+            if (type == ContentType.movie)
             {
-                return null;
+                title = doc.RootElement.GetProperty("title").GetString();
             }
-            var dateString = doc.RootElement.GetProperty("release_date").GetString();
+            else if (type == ContentType.tv)
+            {
+                title = doc.RootElement.GetProperty("name").GetString();
+            }
+            if (string.IsNullOrEmpty(title))
+            {
+                title = "Unknown";
+            }
+
+            string? dateString = null;
+            if (type == ContentType.movie)
+            {
+                dateString = doc.RootElement.GetProperty("release_date").GetString();
+            }
+            else if (type == ContentType.tv)
+            {
+                dateString = doc.RootElement.GetProperty("first_air_date").GetString();
+            }
             int? year = null;
             if (!string.IsNullOrEmpty(dateString))
             {
                 year = DateTime.Parse(dateString).Year;
             }
+
+            var overview = doc.RootElement.GetProperty("overview").GetString();
+            if (string.IsNullOrEmpty(overview))
+            {
+                overview = "Unknown";
+            }
+
+            var posterPath = doc.RootElement.GetProperty("poster_path").GetString();
+            var posterUrl = string.IsNullOrEmpty(posterPath)
+                ? string.Empty
+                : $"https://image.tmdb.org/t/p/w500{posterPath}";
+
+            var genres = doc.RootElement.GetProperty("genres").EnumerateArray()
+                .Select(g => g.GetProperty("name").GetString())
+                .Where(g => !string.IsNullOrWhiteSpace(g))
+                .ToList();
+            if (genres.Count == 0)
+            {
+                genres.Add("Unknown");
+            }
+
             var movie = new Movie
             {
                 Title = title,
-                Year = year
+                Year = year,
+                Overview = overview,
+                PosterUrl = posterUrl,
+                Genres = genres
             };
 
             var responseMovie = new MovieDto
             {
-                Title = movie.Title,
-                Year = movie.Year
+                Title = title,
+                Year = year,
+                Overview = overview,
+                PosterUrl = posterUrl,
+                Genres = genres
             };
             return responseMovie;
         }

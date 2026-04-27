@@ -2,7 +2,7 @@
 {
     public class SearchMovieDto
     {
-        public string Title { get; set; } = null!;
+        public required string Title { get; set; } = null!;
         public int? Year { get; set; }
     }
 }
