@@ -23,15 +23,15 @@ namespace CineMatch.Controllers
 
 
         [HttpGet]
-        public async Task<ActionResult<MovieDto>> GetMovie(InputFromUserDto dto)
+        public async Task<ActionResult<MovieDto>> GetMovieAsync(InputFromUserDto dto)
         {
-            _logger.LogInformation("попытка найти фильм");
+            _logger.LogInformation("попытка найти фильм по ссылке");
             if (!ModelState.IsValid)
             {
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieService.GetMovieAsync(dto.Input);
+            var result = await _movieService.GetMovieAsync(dto.MainInput, dto.Type, dto.Year);
 
 
             return result.ErrorType switch
