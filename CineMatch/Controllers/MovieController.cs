@@ -23,7 +23,7 @@ namespace CineMatch.Controllers
 
 
         [HttpGet]
-        public async Task<ActionResult<MovieDto>> GetMovieAsync(InputFromUserDto dto)
+        public async Task<ActionResult<MovieDto>> GetMovieByUrlAsync(InputFromUserDto dto)
         {
             _logger.LogInformation("попытка найти фильм по ссылке");
             if (!ModelState.IsValid)
@@ -31,7 +31,28 @@ namespace CineMatch.Controllers
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieService.GetMovieAsync(dto.MainInput, dto.Type, dto.Year);
+            var result = await _movieService.GetMovieByUrlAsync(dto.MainInput);
+
+
+            return result.ErrorType switch
+            {
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok(result.Data)
+            };
+        }
+
+        [HttpGet("/search")]
+        public async Task<ActionResult<MovieDto>> GetMovieBySearchAsync(InputFromUserDto dto)
+        {
+            _logger.LogInformation("попытка найти фильм по названию");
+            if (!ModelState.IsValid)
+            {
+                _logger.LogInformation("Модель невалидна");
+                return BadRequest(ModelState);
+            }
+            var result = await _movieService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year);
 
 
             return result.ErrorType switch

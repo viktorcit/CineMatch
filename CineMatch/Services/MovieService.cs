@@ -1,6 +1,5 @@
 ﻿using CineMatch.Data.DTO;
 using CineMatch.Data.DTO.MoviesDto;
-using CineMatch.Data.DTO.MoviesDTO;
 using CineMatch.Enums;
 using CineMatch.Model;
 using CineMatch.Services.Interfaces;
@@ -24,13 +23,94 @@ namespace CineMatch.Services
 
 
 
+        public async Task<BaseResponseWithDataDto<MovieDto>> GetMovieByUrlAsync(string inputUrl)
+        {
 
-        public async Task<BaseResponseWithDataDto<MovieDto>> GetMovieAsync(string mainInput, ContentType inputContentType, int? inputYear)
+            if (inputUrl == null || string.IsNullOrWhiteSpace(inputUrl))
+            {
+                _logger.LogInformation("Поле ввода пустое");
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Input URl is not supported."
+                };
+            }
+            if (!IsTmdbLink(inputUrl))
+            {
+                _logger.LogInformation("неправильная ссылка");
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Input is not a valid TMDb URL."
+                };
+            }
+
+            try
+            {
+                var movieId = ExtractIdFromLink(inputUrl);
+                if (movieId == 0)
+                {
+                    _logger.LogInformation("неправильная ссылка");
+                    return new BaseResponseWithDataDto<MovieDto>
+                    {
+                        IsSuccess = false,
+                        ErrorType = ErrorType.BadRequest,
+                        ResponseMessage = "Invalid TMDb URL format."
+                    };
+                }
+
+                var contentType = ContentTypeCheck(inputUrl);
+                if (contentType == ContentType.Unknown)
+                {
+                    _logger.LogInformation("неправильная ссылка");
+                    return new BaseResponseWithDataDto<MovieDto>
+                    {
+                        IsSuccess = false,
+                        ErrorType = ErrorType.BadRequest,
+                        ResponseMessage = "Unsupported TMDb URL format."
+                    };
+                }
+
+                var movieDetails = await GetMovieDetails(movieId, contentType);
+                if (movieDetails == null)
+                {
+                    _logger.LogInformation("фильм не найден");
+                    return new BaseResponseWithDataDto<MovieDto>
+                    {
+                        IsSuccess = false,
+                        ErrorType = ErrorType.NotFound,
+                        ResponseMessage = "Movie not found."
+                    };
+                }
+                _logger.LogInformation("фильм найден");
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "Movie details fetched successfully.",
+                    Data = movieDetails
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogInformation("произошла какая то ошибка");
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.ServerError,
+                    ResponseMessage = $"An error occurred while fetching movie details: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear)
         {
             if (mainInput == null || string.IsNullOrWhiteSpace(mainInput))
             {
                 _logger.LogInformation("Поле ввода пустое");
-                return new BaseResponseWithDataDto<MovieDto>
+                return new BaseResponseWithDataDto<List<MovieDto>>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
@@ -38,108 +118,38 @@ namespace CineMatch.Services
                 };
             }
 
-            if (IsTmdbLink(mainInput))
+            try
             {
-                try
+                var movieDetails = await GetMovieDetailsFromSearch(mainInput, inputContentType, inputYear);
+                if (movieDetails == null)
                 {
-                    var movieId = ExtractIdFromLink(mainInput);
-                    if (movieId == 0)
-                    {
-                        _logger.LogInformation("неправильная ссылка");
-                        return new BaseResponseWithDataDto<MovieDto>
-                        {
-                            IsSuccess = false,
-                            ErrorType = ErrorType.BadRequest,
-                            ResponseMessage = "Invalid TMDb URL format."
-                        };
-                    }
-
-                    var contentType = ContentTypeCheck(mainInput);
-                    if (contentType == ContentType.Unknown)
-                    {
-                        _logger.LogInformation("неправильная ссылка");
-                        return new BaseResponseWithDataDto<MovieDto>
-                        {
-                            IsSuccess = false,
-                            ErrorType = ErrorType.BadRequest,
-                            ResponseMessage = "Unsupported TMDb URL format."
-                        };
-                    }
-
-                    var movieDetails = await GetMovieDetails(movieId, contentType);
-                    if (movieDetails == null)
-                    {
-                        _logger.LogInformation("фильм не найден");
-                        return new BaseResponseWithDataDto<MovieDto>
-                        {
-                            IsSuccess = false,
-                            ErrorType = ErrorType.NotFound,
-                            ResponseMessage = "Movie not found."
-                        };
-                    }
-                    _logger.LogInformation("фильм найден");
-                    return new BaseResponseWithDataDto<MovieDto>
-                    {
-                        IsSuccess = true,
-                        ErrorType = ErrorType.None,
-                        ResponseMessage = "Movie details fetched successfully.",
-                        Data = movieDetails
-                    };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogInformation("произошла какая то ошибка");
-                    return new BaseResponseWithDataDto<MovieDto>
+                    _logger.LogInformation("фильм не найден");
+                    return new BaseResponseWithDataDto<List<MovieDto>>
                     {
                         IsSuccess = false,
-                        ErrorType = ErrorType.ServerError,
-                        ResponseMessage = $"An error occurred while fetching movie details: {ex.Message}"
+                        ErrorType = ErrorType.NotFound,
+                        ResponseMessage = "Movie not found."
                     };
                 }
-            }
-
-            if (!IsTmdbLink(mainInput))
-            {
-                try
+                _logger.LogInformation("фильм найден");
+                return new BaseResponseWithDataDto<List<MovieDto>>
                 {
-                    var movieDetails = await GetMovieDetailsFromSearch(mainInput, inputContentType, inputYear);
-                    if (movieDetails == null)
-                    {
-                        _logger.LogInformation("фильм не найден");
-                        return new BaseResponseWithDataDto<MovieDto>
-                        {
-                            IsSuccess = false,
-                            ErrorType = ErrorType.NotFound,
-                            ResponseMessage = "Movie not found."
-                        };
-                    }
-                    _logger.LogInformation("фильм найден");
-                    return new BaseResponseWithDataDto<MovieDto>
-                    {
-                        IsSuccess = true,
-                        ErrorType = ErrorType.None,
-                        ResponseMessage = "Movie details fetched successfully.",
-                        Data = movieDetails
-                    };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogInformation("произошла какая то ошибка");
-                    return new BaseResponseWithDataDto<MovieDto>
-                    {
-                        IsSuccess = false,
-                        ErrorType = ErrorType.ServerError,
-                        ResponseMessage = $"An error occurred while searching for the movie: {ex.Message}"
-                    };
-                }
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "Movie details fetched successfully.",
+                    Data = movieDetails
+                };
             }
-
-            return new BaseResponseWithDataDto<MovieDto>
+            catch (Exception ex)
             {
-                IsSuccess = false,
-                ErrorType = ErrorType.BadRequest,
-                ResponseMessage = "Unsupported URL format."
-            };
+                _logger.LogInformation("произошла какая то ошибка");
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.ServerError,
+                    ResponseMessage = $"An error occurred while searching for the movie: {ex.Message}"
+                };
+            }
         }
 
 
@@ -194,18 +204,33 @@ namespace CineMatch.Services
             return ContentType.Unknown;
         }
 
-        private async Task<MovieDto?> GetMovieDetailsFromSearch(string title, ContentType type, int? year)
+        private async Task<List<MovieDto>?> GetMovieDetailsFromSearch(string title, ContentType type, int? year)
         {
             var searchResult = await SearchMovie(title, type, year);
-            if (searchResult == null)
+            if (searchResult == null || searchResult.Count() == 0)
             {
                 return null;
             }
-            var movieDetails = await GetMovieDetails(searchResult.MovieId, type);
-            return movieDetails;
+
+            var movies = new List<MovieDto>();
+
+            foreach (var result in searchResult)
+            {
+                var details = await GetMovieDetails(result.MovieId, type);
+                if (details != null)
+                {
+                    movies.Add(details);
+                }
+            }
+            if (movies == null || movies.Count() == 0)
+            {
+                return null;
+            }
+
+            return movies;
         }
 
-        private async Task<SearchResult?> SearchMovie(string inputTitle, ContentType inputType, int? inputYear)
+        private async Task<List<SearchResult>?> SearchMovie(string inputTitle, ContentType inputType, int? inputYear)
         {
             if (string.IsNullOrWhiteSpace(inputTitle))
             {
@@ -241,18 +266,20 @@ namespace CineMatch.Services
                 return null;
             }
 
-            var firstResult = resultsArray.EnumerateArray().FirstOrDefault();
-            if (firstResult.ValueKind == JsonValueKind.Undefined)
-                return null;
-
-            var movieId = firstResult.GetProperty("id").GetInt32();
-
-            var searchResponse = new SearchResult
+            var resultsList = resultsArray
+                .EnumerateArray()
+                .Select(r => new SearchResult
+                {
+                    MovieId = r.GetProperty("id").GetInt32()
+                })
+                .Take(5)
+                .ToList();
+            if (resultsList.Count() == 0)
             {
-                MovieId = movieId
-            };
+                return null;
+            }
 
-            return searchResponse;
+            return resultsList;
         }
 
 
@@ -272,34 +299,22 @@ namespace CineMatch.Services
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(json);
 
-            string? title = null;
-            if (type == ContentType.movie)
-            {
-                title = doc.RootElement.GetProperty("title").GetString();
-            }
-            else if (type == ContentType.tv)
-            {
-                title = doc.RootElement.GetProperty("name").GetString();
-            }
+            var title = type == ContentType.movie
+                ? doc.RootElement.GetProperty("title").GetString()
+                : doc.RootElement.GetProperty("name").GetString();
+
             if (string.IsNullOrEmpty(title))
             {
                 title = "Unknown";
             }
 
-            string? dateString = null;
-            if (type == ContentType.movie)
-            {
-                dateString = doc.RootElement.GetProperty("release_date").GetString();
-            }
-            else if (type == ContentType.tv)
-            {
-                dateString = doc.RootElement.GetProperty("first_air_date").GetString();
-            }
-            int? year = null;
-            if (!string.IsNullOrEmpty(dateString))
-            {
-                year = DateTime.Parse(dateString).Year;
-            }
+            var dateString = type == ContentType.movie
+                ? doc.RootElement.GetProperty("release_date").GetString()
+                : doc.RootElement.GetProperty("first_air_date").GetString();
+
+            int? year = !string.IsNullOrEmpty(dateString)
+                ? DateTime.Parse(dateString).Year
+                : null;
 
             var overview = doc.RootElement.GetProperty("overview").GetString();
             if (string.IsNullOrEmpty(overview))
