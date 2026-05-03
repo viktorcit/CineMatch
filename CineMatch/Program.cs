@@ -10,6 +10,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
+builder.Services.AddScoped<IMovieSearchService, MovieSearchService>();
 builder.Services.AddScoped<IMovieService, MovieService>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>

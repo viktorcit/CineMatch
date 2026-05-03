@@ -1,5 +1,6 @@
 ﻿using CineMatch.Data.DTO.MoviesDto;
 using CineMatch.Data.DTO.MoviesDTO;
+using CineMatch.Data.DTO.UserDto;
 using CineMatch.Enums;
 using CineMatch.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -10,13 +11,15 @@ namespace CineMatch.Controllers
     [Route("movie")]
     public class MovieController : ControllerBase
     {
+        private readonly IMovieSearchService _movieSearchService;
         private readonly IMovieService _movieService;
         private readonly ILogger<MovieController> _logger;
 
-        public MovieController(IMovieService movieService, ILogger<MovieController> logger)
+        public MovieController(IMovieSearchService movieSearchService, ILogger<MovieController> logger, IMovieService movieService)
         {
-            _movieService = movieService;
+            _movieSearchService = movieSearchService;
             _logger = logger;
+            _movieService = movieService;
         }
 
 
@@ -31,7 +34,7 @@ namespace CineMatch.Controllers
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieService.GetMovieByUrlAsync(dto.MainInput);
+            var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput);
 
 
             return result.ErrorType switch
@@ -52,13 +55,33 @@ namespace CineMatch.Controllers
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year);
+            var result = await _movieSearchService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year);
 
 
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
                 ErrorType.NotFound => NotFound(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok(result.Data)
+            };
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<MovieDto>> SaveMovieAsync([FromBody] MovieDto movieDto)
+        {
+            _logger.LogInformation("попытка добавить фильм в базу данных");
+            if (!ModelState.IsValid)
+            {
+                _logger.LogInformation("Модель невалидна");
+                return BadRequest(ModelState);
+            }
+            var result = await _movieService.SaveMovieAsync(movieDto);
+
+            return result.ErrorType switch
+            {
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
+                ErrorType.Conflict => Conflict(result.ResponseMessage),
                 ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
                 _ => Ok(result.Data)
             };

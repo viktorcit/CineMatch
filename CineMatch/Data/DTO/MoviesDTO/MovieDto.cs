@@ -1,8 +1,12 @@
-﻿namespace CineMatch.Data.DTO.MoviesDto
+﻿using CineMatch.Enums;
+
+namespace CineMatch.Data.DTO.MoviesDto
 {
     public class MovieDto
     {
         public int Id { get; set; }
+        public int TMdbId { get; set; }
+        public ContentType Type { get; set; }
         public required string Title { get; set; } = null!;
         public int? Year { get; set; }
         public string Overview { get; set; } = null!;

@@ -1,6 +1,6 @@
 ﻿using CineMatch.Enums;
 
-namespace CineMatch.Data.DTO.MoviesDTO
+namespace CineMatch.Data.DTO.UserDto
 {
     public class InputFromUserDto
     {
