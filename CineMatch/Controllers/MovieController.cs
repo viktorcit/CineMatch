@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CineMatch.Controllers
 {
     [ApiController]
-    [Route("/movie")]
+    [Route("movie")]
     public class MovieController : ControllerBase
     {
         private readonly IMovieService _movieService;
@@ -23,7 +23,7 @@ namespace CineMatch.Controllers
 
 
         [HttpGet]
-        public async Task<ActionResult<MovieDto>> GetMovieByUrlAsync(InputFromUserDto dto)
+        public async Task<ActionResult<MovieDto>> GetMovieByUrlAsync([FromBody] InputFromUserDto dto)
         {
             _logger.LogInformation("попытка найти фильм по ссылке");
             if (!ModelState.IsValid)
@@ -43,8 +43,8 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpGet("/search")]
-        public async Task<ActionResult<MovieDto>> GetMovieBySearchAsync(InputFromUserDto dto)
+        [HttpGet("search")]
+        public async Task<ActionResult<List<MovieDto>>> GetMovieBySearchAsync([FromBody] InputFromUserDto dto)
         {
             _logger.LogInformation("попытка найти фильм по названию");
             if (!ModelState.IsValid)
