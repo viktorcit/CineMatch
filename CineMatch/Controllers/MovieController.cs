@@ -1,5 +1,4 @@
 ﻿using CineMatch.Data.DTO.MoviesDto;
-using CineMatch.Data.DTO.MoviesDTO;
 using CineMatch.Data.DTO.UserDto;
 using CineMatch.Enums;
 using CineMatch.Services.Interfaces;
@@ -8,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CineMatch.Controllers
 {
     [ApiController]
-    [Route("movie")]
+    [Route("movies")]
     public class MovieController : ControllerBase
     {
         private readonly IMovieSearchService _movieSearchService;
@@ -26,6 +25,32 @@ namespace CineMatch.Controllers
 
 
         [HttpGet]
+        public async Task<ActionResult<List<MovieDto>>> GetAllMoviesAsync()
+        {
+            _logger.LogInformation("попытка получить все фильмы из базы данных");
+            var result = await _movieService.GetAllMoviesAsync();
+
+            return result;
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<MovieDto>> GetMovieByIdAsync([FromRoute] int id, [FromQuery] ContentType type)
+        {
+            _logger.LogInformation("попытка получить фильм по id");
+            if (id <= 0)
+            {
+                _logger.LogInformation("Некорректный id");
+                return NotFound("Movie not found");
+            }
+            var result = await _movieService.GetMovieByIdAsync(id);
+            return result.ErrorType switch
+            {
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                _ => Ok(result.Data)
+            };
+        }
+
+        [HttpPost]
         public async Task<ActionResult<MovieDto>> GetMovieByUrlAsync([FromBody] InputFromUserDto dto)
         {
             _logger.LogInformation("попытка найти фильм по ссылке");
@@ -34,8 +59,8 @@ namespace CineMatch.Controllers
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput);
 
+            var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput);
 
             return result.ErrorType switch
             {
@@ -46,7 +71,7 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpGet("search")]
+        [HttpPost("search")]
         public async Task<ActionResult<List<MovieDto>>> GetMovieBySearchAsync([FromBody] InputFromUserDto dto)
         {
             _logger.LogInformation("попытка найти фильм по названию");
@@ -67,7 +92,7 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpPost]
+        [HttpPost("save")]
         public async Task<ActionResult<MovieDto>> SaveMovieAsync([FromBody] MovieDto movieDto)
         {
             _logger.LogInformation("попытка добавить фильм в базу данных");
@@ -84,6 +109,26 @@ namespace CineMatch.Controllers
                 ErrorType.Conflict => Conflict(result.ResponseMessage),
                 ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
                 _ => Ok(result.Data)
+            };
+        }
+
+
+        [HttpDelete("id")]
+        public async Task<ActionResult> DeleteMovieAsync([FromQuery] int id)
+        {
+            _logger.LogInformation("попытка удалить фильм из базы данных");
+            var movie = await _movieService.GetMovieByIdAsync(id);
+            if (id <= 0)
+            {
+                _logger.LogInformation("Некорректный id");
+                return NotFound("Movie not found for deletion");
+            }
+            var result = await _movieService.DeleteMovieAsync(id);
+            return result.ErrorType switch
+            {
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok()
             };
         }
     }
