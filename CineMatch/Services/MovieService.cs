@@ -20,15 +20,13 @@ namespace CineMatch.Services
         }
 
 
-
-
-        public async Task<BaseResponseWithDataDto<MovieDto>> SaveMovieAsync(MovieDto dto)
+        public async Task<BaseResponseWithDataDto<SaveMovieDto>> SaveMovieAsync(MovieDto dto, string clientId)
         {
             _logger.LogInformation("Сохранение фильма");
             if (dto == null)
             {
                 _logger.LogInformation("Нет данных для сохранения");
-                return new BaseResponseWithDataDto<MovieDto>
+                return new BaseResponseWithDataDto<SaveMovieDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
@@ -38,7 +36,7 @@ namespace CineMatch.Services
             if (string.IsNullOrEmpty(dto.Title))
             {
                 _logger.LogInformation("Название фильма не указано");
-                return new BaseResponseWithDataDto<MovieDto>
+                return new BaseResponseWithDataDto<SaveMovieDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
@@ -48,7 +46,7 @@ namespace CineMatch.Services
             if (dto.TMdbId <= 0)
             {
                 _logger.LogInformation("Некорректный TMDb ID");
-                return new BaseResponseWithDataDto<MovieDto>
+                return new BaseResponseWithDataDto<SaveMovieDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
@@ -58,19 +56,106 @@ namespace CineMatch.Services
             if (dto.Year.HasValue && (dto.Year < 1888 || dto.Year > DateTime.Now.Year + 1))
             {
                 _logger.LogInformation("Некорректный год выпуска");
-                return new BaseResponseWithDataDto<MovieDto>
+                return new BaseResponseWithDataDto<SaveMovieDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
                     ResponseMessage = "Year must be between 1888 and next year."
                 };
             }
-
-            var movieExists = await _db.Movies.AnyAsync(m => m.TMdbId == dto.TMdbId && m.Type == dto.Type);
-            if (movieExists)
+            if (string.IsNullOrEmpty(clientId))
             {
+                return new BaseResponseWithDataDto<SaveMovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID is required."
+                };
+            }
+
+            var clientSessionExist = await _db.Sessions
+                .FirstOrDefaultAsync(cs => cs.Participants.Any(p => p.ClientId == clientId) && cs.IsActive == true);
+            if (clientSessionExist == null)
+            {
+                _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", clientId);
+                return new BaseResponseWithDataDto<SaveMovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "You are not in any session and cannot save movies or session closed."
+                };
+            }
+
+            var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Id == clientSessionExist.Id);
+            if (session == null)
+            {
+                return new BaseResponseWithDataDto<SaveMovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Session not found for the client."
+                };
+            }
+            if (session.IsActive)
+            {
+                return new BaseResponseWithDataDto<SaveMovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Session is closed. You cannot save movies to a closed session."
+                };
+            }
+
+            var movieExists = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == dto.TMdbId && m.Type == dto.Type);
+            if (movieExists != null)
+            {
+                var movieExistSession = await _db.SessionMovies.FirstOrDefaultAsync(sm => sm.MovieId == movieExists.Id && sm.SessionId == session.Id);
+                if (movieExistSession != null)
+                {
+                    _logger.LogInformation("Фильм уже добавлен в сессию и есть в базе данных");
+                    return new BaseResponseWithDataDto<SaveMovieDto>
+                    {
+                        IsSuccess = false,
+                        ErrorType = ErrorType.Conflict,
+                        ResponseMessage = "Movie with the same TMDb ID and type already exists in the session and database."
+                    };
+                }
+                else if(movieExistSession == null)
+                {
+                    _logger.LogInformation("Фильм уже существует в базе данных, но не добавлен в сессию. Добавляем фильм в сессию.");
+                    var sessionMovie = new SessionMovie
+                    {
+                        SessionId = session.Id,
+                        MovieId = movieExists.Id,
+                        Session = session,
+                        Movie = movieExists
+                    };
+                    _db.SessionMovies.Add(sessionMovie);
+                    await _db.SaveChangesAsync();
+                    var responseOne = new SaveMovieDto
+                    {
+                        MovieId = movieExists.Id,
+                        SessionId = session.Id,
+                        TMdbId = movieExists.TMdbId,
+                        Type = movieExists.Type,
+                        Title = movieExists.Title,
+                        Year = movieExists.Year,
+                        Overview = movieExists.Overview,
+                        PosterUrl = movieExists.PosterUrl,
+                        Genres = movieExists.Genres
+                    };
+                    return new BaseResponseWithDataDto<SaveMovieDto>
+                    {
+                        IsSuccess = true,
+                        ErrorType = ErrorType.None,
+                        ResponseMessage = "Movie already exists in the database but has been added to the session.",
+                        Data = responseOne
+                    };
+                }
+
+
                 _logger.LogInformation("Фильм уже существует в базе данных");
-                return new BaseResponseWithDataDto<MovieDto>
+                return new BaseResponseWithDataDto<SaveMovieDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.Conflict,
@@ -89,27 +174,37 @@ namespace CineMatch.Services
                 Genres = dto.Genres
             };
 
+            var sessionMovieTwo = new SessionMovie
+            {
+                SessionId = session.Id,
+                MovieId = movie.Id,
+                Session = session,
+                Movie = movie
+            };
+
             _db.Movies.Add(movie);
+            _db.SessionMovies.Add(sessionMovieTwo);
             await _db.SaveChangesAsync();
 
-            var response = new MovieDto
+            var responseTwo = new SaveMovieDto
             {
-                Id = movie.Id,
+                MovieId = movie.Id,
                 TMdbId = movie.TMdbId,
                 Type = movie.Type,
                 Title = movie.Title,
                 Year = movie.Year,
                 Overview = movie.Overview,
                 PosterUrl = movie.PosterUrl,
-                Genres = movie.Genres
+                Genres = movie.Genres,
+                SessionId = session.Id,
             };
 
-            return new BaseResponseWithDataDto<MovieDto>
+            return new BaseResponseWithDataDto<SaveMovieDto>
             {
                 IsSuccess = true,
                 ErrorType = ErrorType.None,
-                ResponseMessage = "Movie saved successfully (placeholder).",
-                Data = response
+                ResponseMessage = "Movie saved successfully.",
+                Data = responseTwo
             };
         }
 
