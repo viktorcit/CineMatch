@@ -1,5 +1,6 @@
 ﻿using CineMatch.Data;
 using CineMatch.Data.DTO;
+using CineMatch.Data.DTO.MoviesDto;
 using CineMatch.Data.DTO.SessionDto;
 using CineMatch.Enums;
 using CineMatch.Model;
@@ -168,9 +169,62 @@ namespace CineMatch.Services
         }
 
 
-        public async Task<BaseResponseDto> GetFilmsOfSession()
+        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetFilmsOfSession(string clientId)
         {
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID cannot be empty",
+                };
+            }
+            var clientSession = await _db.SessionParticipants
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+            if (clientSession == null)
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a participant of any session",
+                };
+            }
+            var sessionMovies = await _db.SessionMovies
+                .Where(sm => sm.SessionId == clientSession.SessionId)
+                .ToListAsync();
+            if (sessionMovies == null || !sessionMovies.Any())
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "No movies found for this session",
+                    Data = new List<MovieDto>(),
+                };
+            }
 
+            var movies = sessionMovies.Select(sm => new MovieDto
+            {
+                Id = sm.MovieId,
+                TMdbId = sm.Movie.TMdbId,
+                Type = sm.Movie.Type,
+                Title = sm.Movie.Title,
+                Year = sm.Movie.Year,
+                Overview = sm.Movie.Overview,
+                PosterUrl = sm.Movie.PosterUrl,
+                Genres = sm.Movie.Genres,
+            }).ToList();
+
+
+            return new BaseResponseWithDataDto<List<MovieDto>>
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Films retrieved successfully",
+                Data = movies,
+            };
         }
 
 

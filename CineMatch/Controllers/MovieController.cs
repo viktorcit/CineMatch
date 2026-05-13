@@ -113,8 +113,8 @@ namespace CineMatch.Controllers
         }
 
 
-        [HttpDelete("id")]
-        public async Task<ActionResult> DeleteMovieAsync([FromQuery] int id)
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteMovieAsync(int id)
         {
             _logger.LogInformation("попытка удалить фильм из базы данных");
             var movie = await _movieService.GetMovieByIdAsync(id);

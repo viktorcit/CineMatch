@@ -96,7 +96,7 @@ namespace CineMatch.Services
                     ResponseMessage = "Session not found for the client."
                 };
             }
-            if (session.IsActive)
+            if (!session.IsActive)
             {
                 return new BaseResponseWithDataDto<SaveMovieDto>
                 {
