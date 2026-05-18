@@ -230,18 +230,269 @@ namespace CineMatch.Services
 
         public async Task<BaseResponseDto> LeaveSession(string clientId)
         {
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID cannot be empty",
+                };
+            }
 
+            var sessionParticipant = await _db.SessionParticipants
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+            if (sessionParticipant == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a creator of any session",
+                };
+            }
+
+            _db.SessionParticipants.Remove(sessionParticipant);
+            await _db.SaveChangesAsync();
+
+            return new BaseResponseDto
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Left session successfully",
+            };
         }
 
-        public async Task<BaseResponseDto> LikeFilms()
+        public async Task<BaseResponseDto> EndSession(string clientId)
         {
-
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID cannot be empty",
+                };
+            }
+            var sessionCreator = await _db.Sessions
+                .FirstOrDefaultAsync(p => p.CreatorClientId == clientId);
+            if (sessionCreator == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a creator of any session",
+                };
+            }
+            sessionCreator.IsActive = false;
+            await _db.SaveChangesAsync();
+            return new BaseResponseDto
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Session ended successfully",
+            };
         }
 
-
-        public async Task<BaseResponseDto> DislikeFilms()
+        public async Task<BaseResponseDto> LikeFilms(string clientId, int? movieId)
         {
+            if (string.IsNullOrWhiteSpace(clientId) || !movieId.HasValue)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID and movie ID cannot be empty",
+                };
+            }
 
+            var clientParticipant = await _db.SessionParticipants
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+            if (clientParticipant == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a participant of any session",
+                };
+            }
+
+            var sessionId = clientParticipant.SessionId;
+            var clientSession = await _db.Sessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId);
+            if (clientSession == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Session not found",
+                };
+            }
+            if (!clientSession.IsActive)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Session is not active",
+                };
+            }
+            var sessionMovie = await _db.SessionMovies
+                .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId.Value);
+            if (sessionMovie == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Movie not found in this session",
+                };
+            }
+            var participantNumber = clientParticipant.ParticipantNumber;
+            if (participantNumber != 1 || participantNumber != 2)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Invalid participant number",
+                };
+            }
+
+            var existingVote = await _db.Votes
+            .AnyAsync(v => v.ParticipantNumber == participantNumber && v.SessionId == sessionId && v.MovieId == movieId);
+            if (existingVote)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "You have already voted for this session",
+                };
+            }
+
+            var vote = new Vote
+            {
+                IsLiked = true,
+                SessionId = sessionId,
+                ParticipantNumber = 1,
+                MovieId = movieId.Value,
+                Session = clientSession,
+                Movie = sessionMovie.Movie,
+            };
+
+            _db.Votes.Add(vote);
+            await _db.SaveChangesAsync();
+
+            return new BaseResponseDto
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Film liked successfully",
+            };
+        }
+
+        public async Task<BaseResponseDto> DislikeFilms(string clientId, int? movieId)
+        {
+            if (string.IsNullOrWhiteSpace(clientId) || !movieId.HasValue)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID and movie ID cannot be empty",
+                };
+            }
+
+            var clientParticipant = await _db.SessionParticipants
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+            if (clientParticipant == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a participant of any session",
+                };
+            }
+
+            var sessionId = clientParticipant.SessionId;
+            var clientSession = await _db.Sessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId);
+            if (clientSession == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Session not found",
+                };
+            }
+            if (!clientSession.IsActive)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Session is not active",
+                };
+            }
+            var sessionMovie = await _db.SessionMovies
+                .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId.Value);
+            if (sessionMovie == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Movie not found in this session",
+                };
+            }
+            var participantNumber = clientParticipant.ParticipantNumber;
+            if (participantNumber != 1 || participantNumber != 2)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Invalid participant number",
+                };
+            }
+
+            var existingVote = await _db.Votes
+            .AnyAsync(v => v.ParticipantNumber == participantNumber && v.SessionId == sessionId && v.MovieId == movieId);
+            if (existingVote)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "You have already voted for this session",
+                };
+            }
+
+            var vote = new Vote
+            {
+                IsLiked = false,
+                SessionId = sessionId,
+                ParticipantNumber = 1,
+                MovieId = movieId.Value,
+                Session = clientSession,
+                Movie = sessionMovie.Movie,
+            };
+
+            _db.Votes.Add(vote);
+            await _db.SaveChangesAsync();
+
+            return new BaseResponseDto
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Film disliked successfully",
+            };
         }
 
 
