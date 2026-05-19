@@ -600,6 +600,119 @@ namespace CineMatch.Services
             };
         }
 
+        public async Task<BaseResponseDto> ClearSessionVotes(string clientId)
+        {
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID cannot be empty",
+                };
+            }
+            var sessionCreator = await _db.Sessions
+                .FirstOrDefaultAsync(p => p.CreatorClientId == clientId);
+            if (sessionCreator == null)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a creator of any session",
+                };
+            }
+            var sessionId = sessionCreator.Id;
+            var votesToRemove = await _db.Votes.Where(v => v.SessionId == sessionId).ToListAsync();
+            if (votesToRemove == null || !votesToRemove.Any())
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "No votes to clear for this session",
+                };
+            }
+            _db.Votes.RemoveRange(votesToRemove);
+            await _db.SaveChangesAsync();
+            return new BaseResponseDto
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Session votes cleared successfully",
+            };
+        }
+
+        public async Task<BaseResponseWithDataDto<MovieDto>> GetRandomMatchedFilm(string clientId)
+        {
+            if (string.IsNullOrEmpty(clientId))
+            {
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID cannot be empty",
+                };
+            }
+            var clientParticipant = await _db.SessionParticipants
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+            if (clientParticipant == null)
+            {
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a participant of any session",
+                };
+            }
+            var sessionId = clientParticipant.SessionId;
+            var matchedMovieIds = await _db.Votes
+                .Where(v => v.SessionId == sessionId && v.IsLiked)
+                .GroupBy(v => v.MovieId)
+                .Where(g => g.Select(v => v.ParticipantNumber).Distinct().Count() == 2)
+                .Select(g => g.Key)
+                .ToListAsync();
+            if (matchedMovieIds == null || !matchedMovieIds.Any())
+            {
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "No matched movies found for this session",
+                    Data = null,
+                };
+            }
+            var random = new Random();
+            var randomMovieId = matchedMovieIds[random.Next(matchedMovieIds.Count)];
+            var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == randomMovieId);
+            if (movie == null)
+            {
+                return new BaseResponseWithDataDto<MovieDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Matched movie not found",
+                };
+            }
+            return new BaseResponseWithDataDto<MovieDto>
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Random matched movie retrieved successfully",
+                Data = new MovieDto
+                {
+                    Id = movie.Id,
+                    TMdbId = movie.TMdbId,
+                    Type = movie.Type,
+                    Title = movie.Title,
+                    Year = movie.Year,
+                    Overview = movie.Overview,
+                    PosterUrl = movie.PosterUrl,
+                    Genres = movie.Genres,
+                },
+            };
+        }
+
 
 
         //private methods
