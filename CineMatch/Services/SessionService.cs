@@ -6,6 +6,7 @@ using CineMatch.Enums;
 using CineMatch.Model;
 using CineMatch.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
 
 namespace CineMatch.Services
 {
@@ -492,6 +493,110 @@ namespace CineMatch.Services
                 IsSuccess = true,
                 ErrorType = ErrorType.None,
                 ResponseMessage = "Film disliked successfully",
+            };
+        }
+
+
+        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetMatchedInSessionMovie(string clientId)
+        {
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Client ID cannot be empty",
+                };
+            }
+            var clientParticipant = await _db.SessionParticipants
+                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+            if (clientParticipant == null)
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "You are not a participant of any session",
+                };
+            }
+            var sessionId = clientParticipant.SessionId;
+            var clientSession = await _db.Sessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId);
+            if (clientSession == null)
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Session not found",
+                };
+            }
+            if (!clientSession.IsActive)
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Session is not active",
+                };
+            }
+
+            var matchedMovieIds = await _db.Votes
+                .Where(v => v.SessionId == sessionId && v.IsLiked)
+                .GroupBy(v => v.MovieId)
+                .Where(g => g.Select(v => v.ParticipantNumber).Distinct().Count() == 2)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            if (matchedMovieIds == null || !matchedMovieIds.Any())
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "No matched movies found for this session",
+                    Data = null,
+                };
+            }
+
+            List<MovieDto> matchedMovie = new List<MovieDto>();
+
+            foreach (var movieId in matchedMovieIds)
+            {
+                var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == movieId);
+                if (movie != null)
+                {
+                    matchedMovie.Add(new MovieDto
+                    {
+                        Id = movie.Id,
+                        TMdbId = movie.TMdbId,
+                        Type = movie.Type,
+                        Title = movie.Title,
+                        Year = movie.Year,
+                        Overview = movie.Overview,
+                        PosterUrl = movie.PosterUrl,
+                        Genres = movie.Genres,
+                    });
+                }
+            }
+            if (matchedMovie == null || !matchedMovie.Any())
+            {
+                return new BaseResponseWithDataDto<List<MovieDto>>
+                {
+                    IsSuccess = true,
+                    ErrorType = ErrorType.None,
+                    ResponseMessage = "No matched movies found for this session",
+                    Data = null,
+                };
+            }
+
+
+            return new BaseResponseWithDataDto<List<MovieDto>>
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Matched movies retrieved successfully",
+                Data = matchedMovie,
             };
         }
 
