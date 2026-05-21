@@ -88,7 +88,7 @@ namespace CineMatch.Services
         }
 
 
-        public async Task<BaseResponseDto> JoinToSession(string code, string clientId)
+        public async Task<BaseResponseDto> JoinToSessionAsync(string code, string clientId)
         {
             if (string.IsNullOrWhiteSpace(code))
             {
@@ -170,7 +170,7 @@ namespace CineMatch.Services
         }
 
 
-        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetFilmsOfSession(string clientId)
+        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetFilmsOfSessionAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
@@ -229,7 +229,7 @@ namespace CineMatch.Services
         }
 
 
-        public async Task<BaseResponseDto> LeaveSession(string clientId)
+        public async Task<BaseResponseDto> LeaveSessionAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
@@ -264,7 +264,7 @@ namespace CineMatch.Services
             };
         }
 
-        public async Task<BaseResponseDto> EndSession(string clientId)
+        public async Task<BaseResponseDto> EndSessionAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
@@ -296,7 +296,7 @@ namespace CineMatch.Services
             };
         }
 
-        public async Task<BaseResponseDto> LikeFilms(string clientId, int? movieId)
+        public async Task<BaseResponseDto> LikeFilmsAsync(string clientId, int? movieId)
         {
             if (string.IsNullOrWhiteSpace(clientId) || !movieId.HasValue)
             {
@@ -396,7 +396,7 @@ namespace CineMatch.Services
             };
         }
 
-        public async Task<BaseResponseDto> DislikeFilms(string clientId, int? movieId)
+        public async Task<BaseResponseDto> DislikeFilmsAsync(string clientId, int? movieId)
         {
             if (string.IsNullOrWhiteSpace(clientId) || !movieId.HasValue)
             {
@@ -497,7 +497,7 @@ namespace CineMatch.Services
         }
 
 
-        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetMatchedInSessionMovie(string clientId)
+        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetMatchedInSessionMovieAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
@@ -600,7 +600,7 @@ namespace CineMatch.Services
             };
         }
 
-        public async Task<BaseResponseDto> ClearSessionVotes(string clientId)
+        public async Task<BaseResponseDto> ClearSessionVotesAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
@@ -643,7 +643,7 @@ namespace CineMatch.Services
             };
         }
 
-        public async Task<BaseResponseWithDataDto<MovieDto>> GetRandomMatchedFilm(string clientId)
+        public async Task<BaseResponseWithDataDto<MovieDto>> GetRandomMatchedFilmAsync(string clientId)
         {
             if (string.IsNullOrEmpty(clientId))
             {

@@ -1,6 +1,6 @@
 ﻿namespace CineMatch.Data.DTO.SessionDto
 {
-    public class JoinSessionRequest
+    public class JoinSessionRequestDto
     {
         public string Code { get; set; } = null!;
 

@@ -93,7 +93,7 @@ namespace CineMatch.Controllers
         }
 
         [HttpPost("save")]
-        public async Task<ActionResult<MovieDto>> SaveMovieAsync([FromBody] MovieDto movieDto)
+        public async Task<ActionResult<MovieDto>> SaveMovieAsync([FromBody] MovieDto movieDto, string clientId)
         {
             _logger.LogInformation("попытка добавить фильм в базу данных");
             if (!ModelState.IsValid)
@@ -101,7 +101,7 @@ namespace CineMatch.Controllers
                 _logger.LogInformation("Модель невалидна");
                 return BadRequest(ModelState);
             }
-            var result = await _movieService.SaveMovieAsync(movieDto);
+            var result = await _movieService.SaveMovieAsync(movieDto, clientId);
 
             return result.ErrorType switch
             {
