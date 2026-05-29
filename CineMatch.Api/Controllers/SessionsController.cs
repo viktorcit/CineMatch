@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace CineMatch.Api.Controllers
 {
     [ApiController]
-    [Route("session")]
-    public class SessionController : ControllerBase
+    [Route("api/[controller]")]
+    public class SessionsController : ControllerBase
     {
-        private readonly ILogger<SessionController> _logger;
+        private readonly ILogger<SessionsController> _logger;
         private readonly ISessionService _sessionService;
 
-        public SessionController(ILogger<SessionController> logger, ISessionService sessionService)
+        public SessionsController(ILogger<SessionsController> logger, ISessionService sessionService)
         {
             _logger = logger;
             _sessionService = sessionService;

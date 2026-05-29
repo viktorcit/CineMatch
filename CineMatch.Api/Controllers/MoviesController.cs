@@ -7,14 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace CineMatch.Api.Controllers
 {
     [ApiController]
-    [Route("movies")]
-    public class MovieController : ControllerBase
+    [Route("api/[controller]")]
+    public class MoviesController : ControllerBase
     {
         private readonly IMovieSearchService _movieSearchService;
         private readonly IMovieService _movieService;
-        private readonly ILogger<MovieController> _logger;
+        private readonly ILogger<MoviesController> _logger;
 
-        public MovieController(IMovieSearchService movieSearchService, ILogger<MovieController> logger, IMovieService movieService)
+        public MoviesController(IMovieSearchService movieSearchService, ILogger<MoviesController> logger, IMovieService movieService)
         {
             _movieSearchService = movieSearchService;
             _logger = logger;
