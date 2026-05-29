@@ -74,7 +74,7 @@ namespace CineMatch.Services
             }
 
             var clientSessionExist = await _db.Sessions
-                .FirstOrDefaultAsync(cs => cs.Participants.Any(p => p.ClientId == clientId) && cs.IsActive == true);
+                .FirstOrDefaultAsync(cs => cs.Participants.Any(p => p.ClientId == clientId));
             if (clientSessionExist == null)
             {
                 _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", clientId);
@@ -94,15 +94,6 @@ namespace CineMatch.Services
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
                     ResponseMessage = "Session not found for the client."
-                };
-            }
-            if (!session.IsActive)
-            {
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session is closed. You cannot save movies to a closed session."
                 };
             }
 

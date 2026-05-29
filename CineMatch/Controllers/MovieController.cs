@@ -92,8 +92,8 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpPost("save")]
-        public async Task<ActionResult<MovieDto>> SaveMovieAsync([FromBody] MovieDto movieDto, string clientId)
+        [HttpPost("save/{clientId}")]
+        public async Task<ActionResult<MovieDto>> SaveMovieAsync(string clientId, [FromBody] MovieDto movieDto)
         {
             _logger.LogInformation("попытка добавить фильм в базу данных");
             if (!ModelState.IsValid)

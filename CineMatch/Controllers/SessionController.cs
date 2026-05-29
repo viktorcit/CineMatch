@@ -22,7 +22,7 @@ namespace CineMatch.Controllers
 
 
         // GET
-        [HttpGet("{clientId}")]
+        [HttpGet("movies/{clientId}")]
         public async Task<ActionResult<List<MovieDto>>> GetFilmsOfSessionAsync(string clientId)
         {
             _logger.LogInformation("получение фильмов сессии");
@@ -90,7 +90,7 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpPost("leave")]
+        [HttpPost("leave/{clientId}")]
         public async Task<ActionResult<MovieDto>> LeaveSessionAsync(string clientId)
         {
             _logger.LogInformation("покинуть сессию");
@@ -103,7 +103,7 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpPost("end")]
+        [HttpPost("end/{clientId}")]
         public async Task<ActionResult<MovieDto>> EndSessionAsync(string clientId)
         {
             _logger.LogInformation("завершить сессию");
@@ -117,10 +117,10 @@ namespace CineMatch.Controllers
         }
 
         [HttpPost("like")]
-        public async Task<ActionResult<MovieDto>> LikeFilmsAsync(string clientId, int? movieId)
+        public async Task<ActionResult<MovieDto>> LikeFilmsAsync(VoteRequestDto dto)
         {
             _logger.LogInformation("лайк фильма");
-            var result = await _sessionService.LikeFilmsAsync(clientId, movieId);
+            var result = await _sessionService.LikeFilmsAsync(dto.clientId, dto.movieId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -130,10 +130,10 @@ namespace CineMatch.Controllers
         }
 
         [HttpPost("dislike")]
-        public async Task<ActionResult<MovieDto>> DislikeFilmsAsync(string clientId, int? movieId)
+        public async Task<ActionResult<MovieDto>> DislikeFilmsAsync(VoteRequestDto dto)
         {
             _logger.LogInformation("дизлайк фильма");
-            var result = await _sessionService.DislikeFilmsAsync(clientId, movieId);
+            var result = await _sessionService.DislikeFilmsAsync(dto.clientId, dto.movieId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -142,7 +142,7 @@ namespace CineMatch.Controllers
             };
         }
 
-        [HttpPost("clear-votes")]
+        [HttpPost("clear-votes/{clientId}")]
         public async Task<ActionResult<MovieDto>> ClearSessionVotesAsync(string clientId)
         {
             _logger.LogInformation("очистить голоса сессии");

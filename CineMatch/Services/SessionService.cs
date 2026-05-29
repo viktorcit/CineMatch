@@ -6,7 +6,6 @@ using CineMatch.Enums;
 using CineMatch.Model;
 using CineMatch.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
 
 namespace CineMatch.Services
 {
@@ -35,22 +34,34 @@ namespace CineMatch.Services
                 };
             }
             _logger.LogInformation("создание сессии");
-            var existingSession = await _db.Sessions.AnyAsync(s => s.CreatorClientId == clientId && s.IsActive);
+            var existingSession = await _db.Sessions
+                .AnyAsync(s => s.CreatorClientId == clientId);
             if (existingSession)
             {
                 return new BaseResponseWithDataDto<SessionDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You already have an active session",
+                    ResponseMessage = "You already have an active session.",
                 };
             }
+            var existingParticipant = await _db.SessionParticipants
+                .AnyAsync(p => p.ClientId == clientId);
+            if (existingParticipant)
+            {
+                return new BaseResponseWithDataDto<SessionDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "You are already a participant of another session. Leave for creation",
+                };
+            }
+
 
             var session = new Session
             {
                 Code = await GenerateCode(),
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true,
                 CreatorClientId = clientId,
             };
 
@@ -71,7 +82,6 @@ namespace CineMatch.Services
                 Id = session.Id,
                 Code = session.Code,
                 CreatedAt = session.CreatedAt,
-                IsActive = session.IsActive,
                 CreatorClientId = session.CreatorClientId,
                 SessionMovies = new List<SessionMovie>(),
                 Votes = new List<Vote>(),
@@ -130,7 +140,9 @@ namespace CineMatch.Services
                     ResponseMessage = "You are already a participant of another session",
                 };
             }
-            if (session.Participants.Count() >= 2)
+            var sessionParticipants = await _db.SessionParticipants
+                .Where(p => p.SessionId == session.Id).ToListAsync();
+            if (sessionParticipants.Count() >= 2)
             {
                 return new BaseResponseDto
                 {
@@ -139,16 +151,7 @@ namespace CineMatch.Services
                     ResponseMessage = "Session is full",
                 };
             }
-            if (!session.IsActive)
-            {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session is not active",
-                };
-            }
-            var participantNumber = session.Participants.Count + 1;
+            var participantNumber = sessionParticipants.Count() + 1;
 
             var newParticipant = new SessionParticipant
             {
@@ -194,7 +197,18 @@ namespace CineMatch.Services
             }
             var sessionMovies = await _db.SessionMovies
                 .Where(sm => sm.SessionId == clientSession.SessionId)
-                .ToListAsync();
+                .Select(sm => new MovieDto
+                {
+                    Id = sm.MovieId,
+                    TMdbId = sm.Movie.TMdbId,
+                    Type = sm.Movie.Type,
+                    Title = sm.Movie.Title,
+                    Year = sm.Movie.Year,
+                    Overview = sm.Movie.Overview,
+                    PosterUrl = sm.Movie.PosterUrl,
+                    Genres = sm.Movie.Genres
+                }).ToListAsync();
+
             if (sessionMovies == null || !sessionMovies.Any())
             {
                 return new BaseResponseWithDataDto<List<MovieDto>>
@@ -206,25 +220,13 @@ namespace CineMatch.Services
                 };
             }
 
-            var movies = sessionMovies.Select(sm => new MovieDto
-            {
-                Id = sm.MovieId,
-                TMdbId = sm.Movie.TMdbId,
-                Type = sm.Movie.Type,
-                Title = sm.Movie.Title,
-                Year = sm.Movie.Year,
-                Overview = sm.Movie.Overview,
-                PosterUrl = sm.Movie.PosterUrl,
-                Genres = sm.Movie.Genres,
-            }).ToList();
-
 
             return new BaseResponseWithDataDto<List<MovieDto>>
             {
                 IsSuccess = true,
                 ErrorType = ErrorType.None,
                 ResponseMessage = "Films retrieved successfully",
-                Data = movies,
+                Data = sessionMovies,
             };
         }
 
@@ -249,7 +251,18 @@ namespace CineMatch.Services
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a creator of any session",
+                    ResponseMessage = "You are not a participant in any session",
+                };
+            }
+            var sessionCreatorExist = await _db.Sessions
+                .AnyAsync(s => s.Id == sessionParticipant.SessionId && s.CreatorClientId == clientId);
+            if (sessionCreatorExist)
+            {
+                return new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "You are a creator of this session. End session for leaving",
                 };
             }
 
@@ -283,10 +296,10 @@ namespace CineMatch.Services
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a creator of any session",
+                    ResponseMessage = "You don't have an active session that you created to end it.",
                 };
             }
-            sessionCreator.IsActive = false;
+            _db.Sessions.Remove(sessionCreator);
             await _db.SaveChangesAsync();
             return new BaseResponseDto
             {
@@ -332,17 +345,9 @@ namespace CineMatch.Services
                     ResponseMessage = "Session not found",
                 };
             }
-            if (!clientSession.IsActive)
-            {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session is not active",
-                };
-            }
+
             var sessionMovie = await _db.SessionMovies
-                .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId.Value);
+                .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId);
             if (sessionMovie == null)
             {
                 return new BaseResponseDto
@@ -353,7 +358,8 @@ namespace CineMatch.Services
                 };
             }
             var participantNumber = clientParticipant.ParticipantNumber;
-            if (participantNumber != 1 || participantNumber != 2)
+            _logger.LogInformation("участник {participantNumber}", participantNumber);
+            if (participantNumber != 1 && participantNumber != 2)
             {
                 return new BaseResponseDto
                 {
@@ -379,7 +385,7 @@ namespace CineMatch.Services
             {
                 IsLiked = true,
                 SessionId = sessionId,
-                ParticipantNumber = 1,
+                ParticipantNumber = participantNumber,
                 MovieId = movieId.Value,
                 Session = clientSession,
                 Movie = sessionMovie.Movie,
@@ -388,6 +394,8 @@ namespace CineMatch.Services
             _db.Votes.Add(vote);
             await _db.SaveChangesAsync();
 
+
+            _logger.LogInformation("участник {participantNumber} голосует за фильм {movieId} в сессии {sessionId}", participantNumber, movieId, sessionId);
             return new BaseResponseDto
             {
                 IsSuccess = true,
@@ -432,15 +440,6 @@ namespace CineMatch.Services
                     ResponseMessage = "Session not found",
                 };
             }
-            if (!clientSession.IsActive)
-            {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session is not active",
-                };
-            }
             var sessionMovie = await _db.SessionMovies
                 .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId.Value);
             if (sessionMovie == null)
@@ -453,7 +452,7 @@ namespace CineMatch.Services
                 };
             }
             var participantNumber = clientParticipant.ParticipantNumber;
-            if (participantNumber != 1 || participantNumber != 2)
+            if (participantNumber != 1 && participantNumber != 2)
             {
                 return new BaseResponseDto
                 {
@@ -479,7 +478,7 @@ namespace CineMatch.Services
             {
                 IsLiked = false,
                 SessionId = sessionId,
-                ParticipantNumber = 1,
+                ParticipantNumber = participantNumber,
                 MovieId = movieId.Value,
                 Session = clientSession,
                 Movie = sessionMovie.Movie,
@@ -529,15 +528,6 @@ namespace CineMatch.Services
                     IsSuccess = false,
                     ErrorType = ErrorType.NotFound,
                     ResponseMessage = "Session not found",
-                };
-            }
-            if (!clientSession.IsActive)
-            {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session is not active",
                 };
             }
 
