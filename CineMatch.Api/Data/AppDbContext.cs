@@ -12,5 +12,6 @@ namespace CineMatch.Api.Data
         public DbSet<SessionMovie> SessionMovies => Set<SessionMovie>();
         public DbSet<Vote> Votes => Set<Vote>();
         public DbSet<SessionParticipant> SessionParticipants => Set<SessionParticipant>();
+        public DbSet<User> Users => Set<User>();
     }
 }
