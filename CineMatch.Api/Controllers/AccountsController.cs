@@ -9,14 +9,12 @@ namespace CineMatch.Api.Controllers
     [Route("api/[controller]")]
     public class AccountsController : ControllerBase
     {
-        private readonly AppDbContext _db;
         private readonly ILogger<UsersController> _logger;
         private readonly IAccountService _accountService;
 
 
-        public AccountsController(AppDbContext db, ILogger<UsersController> logger, IAccountService accountService)
+        public AccountsController(ILogger<UsersController> logger, IAccountService accountService)
         {
-            _db = db;
             _logger = logger;
             _accountService = accountService;
         }

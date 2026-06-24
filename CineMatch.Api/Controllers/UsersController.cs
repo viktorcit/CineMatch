@@ -10,14 +10,12 @@ namespace CineMatch.Api.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly AppDbContext _db;
         private readonly ILogger<UsersController> _logger;
         private readonly IUserService _userService;
 
 
-        public UsersController(AppDbContext db, ILogger<UsersController> logger, IUserService userService)
+        public UsersController(ILogger<UsersController> logger, IUserService userService)
         {
-            _db = db;
             _logger = logger;
             _userService = userService;
         }
@@ -26,8 +24,12 @@ namespace CineMatch.Api.Controllers
 
 
         [HttpPost("guest")]
-        public async Task<ActionResult<UserDto>> CreateUser(string clientId)
+        public async Task<ActionResult<UserDto>> CreateUser(string? clientId)
         {
+            if (!string.IsNullOrEmpty(clientId))
+            {
+                return BadRequest("You already have account");
+            }
             var result = await _userService.CreateUser(clientId);
 
             return result.ErrorType switch

@@ -5,6 +5,6 @@ namespace CineMatch.Api.Services.Interfaces
 {
     public interface IUserService
     {
-        Task<BaseResponseWithDataDto<UserDto>> CreateUser(string clientId);
+        Task<BaseResponseWithDataDto<UserDto>> CreateUser(string? clientId);
     }
 }

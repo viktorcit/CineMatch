@@ -20,7 +20,7 @@ namespace CineMatch.Api.Services
         }
 
 
-        public async Task<BaseResponseWithDataDto<UserDto>> CreateUser(string clientId)
+        public async Task<BaseResponseWithDataDto<UserDto>> CreateUser(string? clientId)
         {
             if (!string.IsNullOrEmpty(clientId))
             {
@@ -33,24 +33,26 @@ namespace CineMatch.Api.Services
                 };
             }
 
-            var Id = await GenerateId();
+            var PublicId = await GenerateId();
+            var Secret = GenerateSecret();
 
             var user = new User
             {
-                PublicId = Id,
-                Secret = GenerateSecret(),
+                PublicId = PublicId,
+                Secret = Secret,
                 CreatedAt = DateTime.UtcNow
             };
+
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
 
             var response = new UserDto
             {
                 Id = user.Id,
                 PublicId = user.PublicId,
+                Secret = user.Secret,
                 CreatedAt = user.CreatedAt
             };
-
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
 
             return new BaseResponseWithDataDto<UserDto>
             {

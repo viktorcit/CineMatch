@@ -49,7 +49,7 @@ namespace CineMatch.Api.Services
             {
                 Id = account.Id,
                 PublicId = account.PublicId,
-                secret = account.Secret,
+                Secret = account.Secret,
                 CreatedAt = account.CreatedAt
             };
             return new BaseResponseWithDataDto<UserDto>
@@ -98,7 +98,7 @@ namespace CineMatch.Api.Services
             {
                 Id = account.Id,
                 PublicId = account.PublicId,
-                secret = account.Secret,
+                Secret = account.Secret,
                 CreatedAt = account.CreatedAt
             };
 
