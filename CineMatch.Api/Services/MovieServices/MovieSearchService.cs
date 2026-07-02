@@ -6,7 +6,7 @@ using CineMatch.Api.Services.Interfaces;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
-namespace CineMatch.Api.Services
+namespace CineMatch.Api.Services.MovieServices
 {
     public class MovieSearchService : IMovieSearchService
     {
@@ -198,7 +198,7 @@ namespace CineMatch.Api.Services
                 {
                     MovieId = r.GetProperty("id").GetInt32(),
                     Type = r.TryGetProperty("media_type", out var typeProp)
-                    ? (typeProp.GetString() == "tv" ? ContentType.tv : ContentType.movie)
+                    ? typeProp.GetString() == "tv" ? ContentType.tv : ContentType.movie
                     : inputType
                 })
                 .Take(5)

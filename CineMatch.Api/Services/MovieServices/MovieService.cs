@@ -7,7 +7,7 @@ using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace CineMatch.Api.Services
+namespace CineMatch.Api.Services.MovieServices
 {
     public class MovieService : IMovieService
     {

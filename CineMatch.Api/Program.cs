@@ -1,9 +1,22 @@
+using CineMatch.Api.Configuration;
 using CineMatch.Api.Data;
-using CineMatch.Api.Services;
+using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
+using CineMatch.Api.Services.JwtServices;
+using CineMatch.Api.Services.MovieServices;
+using CineMatch.Api.Services.UserServices;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
 
 
 builder.Services.AddControllers();
@@ -13,8 +26,12 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IMovieSearchService, MovieSearchService>();
 builder.Services.AddScoped<IMovieService, MovieService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
+//builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
 builder.Services.AddCors(options =>
 {

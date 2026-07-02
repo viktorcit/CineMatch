@@ -6,7 +6,7 @@ using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
-namespace CineMatch.Api.Services
+namespace CineMatch.Api.Services.UserServices
 {
     public class UserService : IUserService
     {
@@ -36,10 +36,8 @@ namespace CineMatch.Api.Services
             var PublicId = await GenerateId();
             var Secret = GenerateSecret();
 
-            var user = new User
+            var user = new ApplicationUser
             {
-                PublicId = PublicId,
-                Secret = Secret,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -48,9 +46,6 @@ namespace CineMatch.Api.Services
 
             var response = new UserDto
             {
-                Id = user.Id,
-                PublicId = user.PublicId,
-                Secret = user.Secret,
                 CreatedAt = user.CreatedAt
             };
 
@@ -76,11 +71,11 @@ namespace CineMatch.Api.Services
             {
                 var Id = new string(Enumerable.Repeat(chars, lenght)
                     .Select(s => s[random.Next(s.Length)]).ToArray());
-                var exists = await _db.Users.AnyAsync(s => s.PublicId == Id);
-                if (!exists)
-                {
-                    return Id;
-                }
+                //var exists = await _db.Users.AnyAsync(s => s.PublicId == Id);
+                //if (!exists)
+                //{
+                //    return Id;
+                //}
             }
         }
 

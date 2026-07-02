@@ -7,13 +7,13 @@ namespace CineMatch.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AccountsController : ControllerBase
+    public class ProfilesController : ControllerBase
     {
         private readonly ILogger<UsersController> _logger;
         private readonly IAccountService _accountService;
 
 
-        public AccountsController(ILogger<UsersController> logger, IAccountService accountService)
+        public ProfilesController(ILogger<UsersController> logger, IAccountService accountService)
         {
             _logger = logger;
             _accountService = accountService;

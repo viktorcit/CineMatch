@@ -1,9 +1,10 @@
 ﻿using CineMatch.Api.Model;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace CineMatch.Api.Data
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -12,6 +13,6 @@ namespace CineMatch.Api.Data
         public DbSet<SessionMovie> SessionMovies => Set<SessionMovie>();
         public DbSet<Vote> Votes => Set<Vote>();
         public DbSet<SessionParticipant> SessionParticipants => Set<SessionParticipant>();
-        public DbSet<User> Users => Set<User>();
+        public DbSet<ApplicationUser> Users => Set<ApplicationUser>();
     }
 }
