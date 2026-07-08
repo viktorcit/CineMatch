@@ -8,7 +8,7 @@
         public DateTime ExpiresAt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? RevokedAt { get; set; }
-        public bool IsRevoked { get; set; }
-        public string ReplacedByToken { get; set; } = string.Empty;
+        public bool IsRevoked { get; set; } = false;
+        public string? ReplacedByToken { get; set; } = string.Empty;
     }
 }

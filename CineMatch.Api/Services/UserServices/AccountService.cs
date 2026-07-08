@@ -35,16 +35,16 @@ namespace CineMatch.Api.Services.UserServices
         //            ErrorType = ErrorType.BadRequest
         //        };
         //    }
-        //    var account = await _db.Users.FirstOrDefaultAsync(a => a.PublicId == accountId);
-        //    if (account == null)
-        //    {
-        //        return new BaseResponseWithDataDto<UserDto>
-        //        {
-        //            IsSuccess = false,
-        //            ResponseMessage = "No account found.",
-        //            ErrorType = ErrorType.NotFound
-        //        };
-        //    }
+        //    //var account = await _db.Users.FirstOrDefaultAsync(a => a.PublicId == accountId);
+        //    //if (account == null)
+        //    //{
+        //    //    return new BaseResponseWithDataDto<UserDto>
+        //    //    {
+        //    //        IsSuccess = false,
+        //    //        ResponseMessage = "No account found.",
+        //    //        ErrorType = ErrorType.NotFound
+        //    //    };
+        //    //}
         //    var responseData = new UserDto
         //    {
         //        Id = account.Id,
@@ -81,16 +81,16 @@ namespace CineMatch.Api.Services.UserServices
                 };
             }
 
-            //var account = await _db.Users.FirstOrDefaultAsync();
-            //if (account == null)
-            //{
-            //    return new BaseResponseWithDataDto<UserDto>
-            //    {
-            //        IsSuccess = false,
-            //        ResponseMessage = "Account not found.",
-            //        ErrorType = ErrorType.NotFound
-            //    };
-            //}
+            var account = await _db.Users.FirstOrDefaultAsync();
+            if (account == null)
+            {
+                return new BaseResponseWithDataDto<UserDto>
+                {
+                    IsSuccess = false,
+                    ResponseMessage = "Account not found.",
+                    ErrorType = ErrorType.NotFound
+                };
+            }
 
             //var responseData = new UserDto
             //{
