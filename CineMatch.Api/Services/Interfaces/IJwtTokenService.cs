@@ -5,6 +5,6 @@ namespace CineMatch.Api.Services.Interfaces
 {
     public interface IJwtTokenService
     {
-        Task<BaseResponseWithDataDto<string>> GenerateTokenAsync(ApplicationUser user);
+        BaseResponseWithDataDto<string> GenerateAccessToken(string userId, string userName, IReadOnlyCollection<string> userRoles);
     }
 }

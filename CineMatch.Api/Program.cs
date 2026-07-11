@@ -7,6 +7,7 @@ using CineMatch.Api.Services.MovieServices;
 using CineMatch.Api.Services.UserServices;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,9 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+
+builder.Services.AddSingleton<JwtSecurityTokenHandler>();
+
 
 builder.Services.AddCors(options =>
 {

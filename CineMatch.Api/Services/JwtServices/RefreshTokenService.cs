@@ -13,15 +13,13 @@ namespace CineMatch.Api.Services.JwtServices
     public class RefreshTokenService : IRefreshTokenService
     {
         private readonly AppDbContext _db;
-        private readonly ILogger _logger;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IJwtTokenService _jwtTokenService;
 
 
-        public RefreshTokenService(AppDbContext db, ILogger logger, UserManager<ApplicationUser> userManager, IJwtTokenService jwtTokenService)
+        public RefreshTokenService(AppDbContext db, UserManager<ApplicationUser> userManager, IJwtTokenService jwtTokenService)
         {
             _db = db;
-            _logger = logger;
             _userManager = userManager;
             _jwtTokenService = jwtTokenService;
         }
@@ -41,7 +39,7 @@ namespace CineMatch.Api.Services.JwtServices
                     IsSuccess = false,
                     ResponseMessage = "Invalid or expired refresh token.",
                     ErrorType = ErrorType.Unauthorized,
-                    Data = default
+                    Data = null
                 };
             }
 
@@ -53,21 +51,21 @@ namespace CineMatch.Api.Services.JwtServices
                     IsSuccess = false,
                     ResponseMessage = "User not found.",
                     ErrorType = ErrorType.Unauthorized,
-                    Data = default
+                    Data = null
                 };
             }
 
             var newAccessToken = await _jwtTokenService.GenerateTokenAsync(user);
-            var newRefreshToken = GenerateRefreshToken();
-            var refreshToken = CreateRefreshToken(user, newRefreshToken);
-            if (newAccessToken.Data == null)
+            var newRefreshToken = GenerateUniqueRefreshToken();
+            var refreshToken = CreateRefreshTokenEntity(user, newRefreshToken);
+            if (!newAccessToken.IsSuccess || newAccessToken.Data == null)
             {
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
-                    ResponseMessage = "Failed to generate new refresh token.",
+                    ResponseMessage = "Failed to generate new access token.",
                     ErrorType = ErrorType.ServerError,
-                    Data = default
+                    Data = null
                 };
             }
             storedToken.IsRevoked = true;
@@ -84,26 +82,32 @@ namespace CineMatch.Api.Services.JwtServices
             return new BaseResponseWithDataDto<TokensResponseDto>
             {
                 IsSuccess = true,
-                ResponseMessage = "Token refreshed successfully.",
+                ResponseMessage = "Tokens created successfully.",
                 ErrorType = ErrorType.None,
                 Data = tokensResponse
             };
         }
 
-        public async Task<BaseResponseWithDataDto<string>> InitialRefreshToken()
+        public async Task<BaseResponseWithDataDto<string>> CreateRefreshToken(ApplicationUser user)
         {
+            var newRefreshToken = GenerateUniqueRefreshToken();
+            var refreshToken = CreateRefreshTokenEntity(user, newRefreshToken);
+            _db.RefreshTokens.Add(refreshToken);
+            await _db.SaveChangesAsync();
+
+
             return new BaseResponseWithDataDto<string>
             {
                 IsSuccess = true,
                 ResponseMessage = "Initial refresh token generated successfully.",
                 ErrorType = ErrorType.None,
-                Data = string.Empty // Temporary solution to return an empty string until the method is configured
+                Data = newRefreshToken
             };
         }
 
 
         //private methods
-        private static RefreshToken CreateRefreshToken(ApplicationUser user, string token)
+        private static RefreshToken CreateRefreshTokenEntity(ApplicationUser user, string token)
         {
             var refreshToken = new RefreshToken
             {
@@ -116,17 +120,23 @@ namespace CineMatch.Api.Services.JwtServices
             return refreshToken;
         }
 
-        private static string GenerateRefreshToken()
+        private string GenerateUniqueRefreshToken()
         {
             var randomNumber = new byte[64];
-            using (var rng = RandomNumberGenerator.Create())
+
+            while (true)
             {
-                rng.GetBytes(randomNumber);
+                using (var rng = RandomNumberGenerator.Create())
+                {
+                    rng.GetBytes(randomNumber);
+                }
+                if (!_db.RefreshTokens.Any(t => t.Token == Convert.ToBase64String(randomNumber)))
+                {
+                    var token = Convert.ToBase64String(randomNumber);
+
+                    return token;
+                }
             }
-
-            var token = Convert.ToBase64String(randomNumber);
-
-            return token;
         }
     }
 }

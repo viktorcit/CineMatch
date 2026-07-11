@@ -1,9 +1,7 @@
 ﻿using CineMatch.Api.Configuration;
 using CineMatch.Api.Data.DTO;
 using CineMatch.Api.Enums;
-using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -15,56 +13,52 @@ namespace CineMatch.Api.Services.JwtServices
     public class JwtTokenService : IJwtTokenService
     {
         private readonly JwtSettings _jwtSettings;
-        private readonly ILogger<JwtTokenService> _logger;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly JwtSecurityTokenHandler _tokenHandler;
 
-        public JwtTokenService(ILogger<JwtTokenService> logger, IOptions<JwtSettings> options, UserManager<ApplicationUser> userManager)
+        public JwtTokenService(IOptions<JwtSettings> options, JwtSecurityTokenHandler tokenHandler)
         {
-            _logger = logger;
             _jwtSettings = options.Value;
-            _userManager = userManager;
+            _tokenHandler = tokenHandler;
         }
 
 
 
-        public async Task<BaseResponseWithDataDto<string>> GenerateTokenAsync(ApplicationUser user)
+        public BaseResponseWithDataDto<string> GenerateAccessToken(string userId, string userName, IReadOnlyCollection<string> userRoles)
         {
-            if (user == null)
+            var claims = new List<Claim>()
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, userId),
+                new Claim(ClaimTypes.Name, userName)
+            };
+
+            foreach (var role in userRoles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var secretKey = _jwtSettings.SecretKey;
+            if (string.IsNullOrWhiteSpace(secretKey))
             {
                 return new BaseResponseWithDataDto<string>
                 {
                     IsSuccess = false,
-                    ResponseMessage = "User not found.",
-                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "Secret key is not configured.",
+                    ErrorType = ErrorType.ServerError,
                     Data = null
                 };
-            }
-
-            var roles = await _userManager.GetRolesAsync(user);
-
-            var tokenData = new List<Claim>();
-
-            tokenData.Add(new Claim(ClaimTypes.NameIdentifier, user.Id));
-            tokenData.Add(new Claim(ClaimTypes.Name, user.UserName ?? string.Empty));
-
-            foreach (var role in roles)
-            {
-                tokenData.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            var secretKey = _jwtSettings.SecretKey;
+            } 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var signing = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _jwtSettings.Issuer,
-                claims: tokenData,
+                claims: claims,
                 audience: _jwtSettings.Audience,
-                expires: _jwtSettings.ExpirationMinutes,
+                expires: _jwtSettings.ExpirationTime,
                 signingCredentials: signing
                 );
 
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            var tokenString = _tokenHandler.WriteToken(token);
 
             return new BaseResponseWithDataDto<string>
             {
