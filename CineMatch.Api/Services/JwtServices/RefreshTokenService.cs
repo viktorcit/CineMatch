@@ -1,10 +1,7 @@
 ﻿using CineMatch.Api.Data;
-using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Data.DTO.AuthDto;
-using CineMatch.Api.Enums;
+using CineMatch.Api.Data.TokensDto;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 
@@ -13,106 +10,52 @@ namespace CineMatch.Api.Services.JwtServices
     public class RefreshTokenService : IRefreshTokenService
     {
         private readonly AppDbContext _db;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IJwtTokenService _jwtTokenService;
 
 
-        public RefreshTokenService(AppDbContext db, UserManager<ApplicationUser> userManager, IJwtTokenService jwtTokenService)
+        public RefreshTokenService(AppDbContext db)
         {
             _db = db;
-            _userManager = userManager;
-            _jwtTokenService = jwtTokenService;
         }
 
 
-
-
-
-        public async Task<BaseResponseWithDataDto<TokensResponseDto>> RefreshTokens(string? oldRefreshToken)
+        public async Task<string?> RefreshToken(RefreshTokenRequestDto dto)
         {
-            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == oldRefreshToken);
+            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == dto.OldRefreshToken);
 
             if (storedToken == null || storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
             {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Invalid or expired refresh token.",
-                    ErrorType = ErrorType.Unauthorized,
-                    Data = null
-                };
+                return null;
             }
 
-            var user = await _userManager.FindByIdAsync(storedToken.UserId);
-            if (user == null)
-            {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "User not found.",
-                    ErrorType = ErrorType.Unauthorized,
-                    Data = null
-                };
-            }
-
-            var newAccessToken = await _jwtTokenService.GenerateTokenAsync(user);
-            var newRefreshToken = GenerateUniqueRefreshToken();
-            var refreshToken = CreateRefreshTokenEntity(user, newRefreshToken);
-            if (!newAccessToken.IsSuccess || newAccessToken.Data == null)
-            {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Failed to generate new access token.",
-                    ErrorType = ErrorType.ServerError,
-                    Data = null
-                };
-            }
+            var newRefreshToken = await GenerateUniqueRefreshToken();
+            var refreshToken = CreateRefreshTokenEntity(dto.UserId, newRefreshToken);
             storedToken.IsRevoked = true;
             _db.RefreshTokens.Add(refreshToken);
             _db.RefreshTokens.Update(storedToken);
             await _db.SaveChangesAsync();
 
-            var tokensResponse = new TokensResponseDto
-            {
-                AccessToken = newAccessToken.Data,
-                RefreshToken = newRefreshToken
-            };
-
-            return new BaseResponseWithDataDto<TokensResponseDto>
-            {
-                IsSuccess = true,
-                ResponseMessage = "Tokens created successfully.",
-                ErrorType = ErrorType.None,
-                Data = tokensResponse
-            };
+            return newRefreshToken;
         }
 
-        public async Task<BaseResponseWithDataDto<string>> CreateRefreshToken(ApplicationUser user)
+        public async Task<string> CreateRefreshToken(string userId)
         {
-            var newRefreshToken = GenerateUniqueRefreshToken();
-            var refreshToken = CreateRefreshTokenEntity(user, newRefreshToken);
-            _db.RefreshTokens.Add(refreshToken);
+            var newRefreshToken = await GenerateUniqueRefreshToken();
+            var refreshTokenEntity = CreateRefreshTokenEntity(userId, newRefreshToken);
+            _db.RefreshTokens.Add(refreshTokenEntity);
             await _db.SaveChangesAsync();
 
 
-            return new BaseResponseWithDataDto<string>
-            {
-                IsSuccess = true,
-                ResponseMessage = "Initial refresh token generated successfully.",
-                ErrorType = ErrorType.None,
-                Data = newRefreshToken
-            };
+            return newRefreshToken;
         }
 
 
         //private methods
-        private static RefreshToken CreateRefreshTokenEntity(ApplicationUser user, string token)
+        private static RefreshToken CreateRefreshTokenEntity(string userId, string token)
         {
             var refreshToken = new RefreshToken
             {
                 Token = token,
-                UserId = user.Id,
+                UserId = userId,
                 ExpiresAt = DateTime.UtcNow.AddDays(7),
                 IsRevoked = false
             };
@@ -120,7 +63,7 @@ namespace CineMatch.Api.Services.JwtServices
             return refreshToken;
         }
 
-        private string GenerateUniqueRefreshToken()
+        private async Task<string> GenerateUniqueRefreshToken()
         {
             var randomNumber = new byte[64];
 
@@ -130,7 +73,8 @@ namespace CineMatch.Api.Services.JwtServices
                 {
                     rng.GetBytes(randomNumber);
                 }
-                if (!_db.RefreshTokens.Any(t => t.Token == Convert.ToBase64String(randomNumber)))
+                var existingToken = await _db.RefreshTokens.AnyAsync(t => t.Token == Convert.ToBase64String(randomNumber));
+                if (!existingToken)
                 {
                     var token = Convert.ToBase64String(randomNumber);
 

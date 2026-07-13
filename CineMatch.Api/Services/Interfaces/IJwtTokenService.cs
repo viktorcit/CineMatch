@@ -1,10 +1,10 @@
 ﻿using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Model;
+using CineMatch.Api.Data.TokensDto;
 
 namespace CineMatch.Api.Services.Interfaces
 {
     public interface IJwtTokenService
     {
-        BaseResponseWithDataDto<string> GenerateAccessToken(string userId, string userName, IReadOnlyCollection<string> userRoles);
+        string? GenerateAccessToken(AccessTokenRequestDto dto);
     }
 }

@@ -1,6 +1,5 @@
 ﻿using CineMatch.Api.Configuration;
-using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Enums;
+using CineMatch.Api.Data.TokensDto;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -23,30 +22,25 @@ namespace CineMatch.Api.Services.JwtServices
 
 
 
-        public BaseResponseWithDataDto<string> GenerateAccessToken(string userId, string userName, IReadOnlyCollection<string> userRoles)
+        public string? GenerateAccessToken(AccessTokenRequestDto dto)
         {
             var claims = new List<Claim>()
             {
-                new Claim(JwtRegisteredClaimNames.Sub, userId),
-                new Claim(ClaimTypes.Name, userName)
+                new Claim(JwtRegisteredClaimNames.Sub, dto.UserId),
+                new Claim(ClaimTypes.Name, dto.UserName)
             };
 
-            foreach (var role in userRoles)
+            foreach (var role in dto.UserRoles)
             {
-                claims.Add(new Claim(ClaimTypes.Role, role));
+                if (!string.IsNullOrWhiteSpace(role))
+                    claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
             var secretKey = _jwtSettings.SecretKey;
             if (string.IsNullOrWhiteSpace(secretKey))
             {
-                return new BaseResponseWithDataDto<string>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Secret key is not configured.",
-                    ErrorType = ErrorType.ServerError,
-                    Data = null
-                };
-            } 
+                return null;
+            }
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var signing = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -60,13 +54,7 @@ namespace CineMatch.Api.Services.JwtServices
 
             var tokenString = _tokenHandler.WriteToken(token);
 
-            return new BaseResponseWithDataDto<string>
-            {
-                IsSuccess = true,
-                ResponseMessage = "Token generated successfully.",
-                ErrorType = ErrorType.None,
-                Data = tokenString
-            };
+            return tokenString;
         }
     }
 }

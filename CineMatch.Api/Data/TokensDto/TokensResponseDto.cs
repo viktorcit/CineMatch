@@ -1,4 +1,4 @@
-﻿namespace CineMatch.Api.Data.DTO.AuthDto
+﻿namespace CineMatch.Api.Data.TokensDto
 {
     public class TokensResponseDto
     {
