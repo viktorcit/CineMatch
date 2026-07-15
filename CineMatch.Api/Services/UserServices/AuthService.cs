@@ -1,6 +1,6 @@
 ﻿using CineMatch.Api.Data.DTO;
 using CineMatch.Api.Data.DTO.AuthDto;
-using CineMatch.Api.Data.TokensDto;
+using CineMatch.Api.Data.DTO.TokensDto;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
@@ -26,19 +26,8 @@ namespace CineMatch.Api.Services.UserServices
 
         public async Task<BaseResponseWithDataDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.UserName) || string.IsNullOrWhiteSpace(dto.Password))
-            {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Username and password are required.",
-                    Data = null
-                };
-            }
-
-            var existingUser = await _userManager.FindByUserNameAsync(dto.UserName);
-
-            if (!existingUser)
+            var existingUser = await _userManager.FindByNameAsync(dto.UserName);
+            if (existingUser != null)
             {
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
@@ -48,42 +37,31 @@ namespace CineMatch.Api.Services.UserServices
                 };
             }
 
-            var newUser = new ApplicationUser
-            {
-                UserName = dto.UserName,
-                CreatedAt = DateTime.UtcNow
-            };
+            var newUser = CreateUserEntity(dto);
 
             var result = await _userManager.CreateAsync(newUser, dto.Password);
-
             if (!result.Succeeded)
             {
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
-                    ResponseMessage = "Failed to create user.",
+                    ErrorType = ErrorType.ServerError,
+                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
                     Data = null
                 };
             }
 
-            var accessTokenEntity = new AccessTokenRequestDto
-            {
-                UserId = newUser.Id,
-                UserName = newUser.UserName,
-                UserRoles = []
-            };
+            // TODO: assign default user role after roles implementation
 
-            var accessToken = _jwtTokenService.GenerateAccessToken(accessTokenEntity);
-
-            var refreshToken = await _refreshTokenService.CreateRefreshToken(newUser.Id);
-
-            if (accessToken == null || refreshToken == null)
+            var tokens = await CreateTokens(newUser);
+            if (tokens == null)
             {
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
-                    ResponseMessage = "Server error.",
-                    ErrorType = ErrorType.ServerError
+                    ErrorType = ErrorType.ServerError,
+                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
+                    Data = null
                 };
             }
 
@@ -91,27 +69,13 @@ namespace CineMatch.Api.Services.UserServices
             {
                 IsSuccess = true,
                 ResponseMessage = "User registered successfully.",
-                Data = new TokensResponseDto
-                {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken
-                }
+                Data = tokens
             };
         }
 
         public async Task<BaseResponseWithDataDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.UserName) || string.IsNullOrWhiteSpace(dto.Password))
-            {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Username and password are required."
-                };
-            }
-
-            var user = await _userManager.FindByUserNameAsync(dto.UserName);
-
+            var user = await _userManager.FindByNameAsync(dto.UserName);
             if (user == null)
             {
                 return new BaseResponseWithDataDto<TokensResponseDto>
@@ -132,39 +96,69 @@ namespace CineMatch.Api.Services.UserServices
                 };
             }
 
-            var accessTokenEntity = new AccessTokenRequestDto
-            {
-                UserId = user.Id,
-                UserName = user.UserName,
-                UserRoles = []
-            };
-
-            var accessToken = _jwtTokenService.GenerateAccessToken(accessTokenEntity);
-
-            var refreshToken = await _refreshTokenService.CreateRefreshToken(user.Id);
-
-            if (accessToken == null || refreshToken == null)
+            var tokens = await CreateTokens(user);
+            if (tokens == null)
             {
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
-                    ResponseMessage = "Server error.",
-                    ErrorType = ErrorType.ServerError
+                    ErrorType = ErrorType.ServerError,
+                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
+                    Data = null
                 };
             }
-
-            var tokensResponse = new TokensResponseDto
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken
-            };
 
             return new BaseResponseWithDataDto<TokensResponseDto>
             {
                 IsSuccess = true,
                 ResponseMessage = "User logged in successfully.",
-                Data = tokensResponse
+                Data = tokens
             };
+        }
+
+
+
+        //private methods
+        private async Task<TokensResponseDto?> CreateTokens(ApplicationUser user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var accessTokenRequest = new AccessTokenRequestDto
+            {
+                UserId = user.Id,
+                UserName = user.UserName,
+                UserRoles = roles.ToArray()
+            };
+
+            var accessToken = _jwtTokenService.GenerateAccessToken(accessTokenRequest);
+            if (accessToken == null)
+            {
+                return null;
+            }
+
+            var refreshToken = await _refreshTokenService.CreateRefreshToken(user.Id);
+            if (refreshToken == null)
+            {
+                return null;
+            }
+
+            var response = new TokensResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            };
+
+            return response;
+        }
+
+        private static ApplicationUser CreateUserEntity(RegisterRequestDto dto)
+        {
+            var user = new ApplicationUser
+            {
+                UserName = dto.UserName,
+                CreatedAt = DateTime.UtcNow
+            };
+            return user;
         }
     }
 }

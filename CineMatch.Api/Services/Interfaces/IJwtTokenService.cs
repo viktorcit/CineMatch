@@ -1,5 +1,5 @@
 ﻿using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Data.TokensDto;
+using CineMatch.Api.Data.DTO.TokensDto;
 
 namespace CineMatch.Api.Services.Interfaces
 {

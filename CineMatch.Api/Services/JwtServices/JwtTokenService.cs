@@ -1,5 +1,5 @@
 ﻿using CineMatch.Api.Configuration;
-using CineMatch.Api.Data.TokensDto;
+using CineMatch.Api.Data.DTO.TokensDto;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;

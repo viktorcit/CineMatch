@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace CineMatch.Api.Data.TokensDto
+namespace CineMatch.Api.Data.DTO.TokensDto
 {
     public class AccessTokenRequestDto
     {

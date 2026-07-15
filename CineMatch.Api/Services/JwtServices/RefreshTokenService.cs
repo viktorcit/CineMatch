@@ -1,5 +1,5 @@
 ﻿using CineMatch.Api.Data;
-using CineMatch.Api.Data.TokensDto;
+using CineMatch.Api.Data.DTO.TokensDto;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
