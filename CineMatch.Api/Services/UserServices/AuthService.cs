@@ -32,6 +32,7 @@ namespace CineMatch.Api.Services.UserServices
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
+                    ErrorType = ErrorType.Conflict,
                     ResponseMessage = "Username already exists.",
                     Data = null
                 };
@@ -68,6 +69,7 @@ namespace CineMatch.Api.Services.UserServices
             return new BaseResponseWithDataDto<TokensResponseDto>
             {
                 IsSuccess = true,
+                ErrorType = ErrorType.None,
                 ResponseMessage = "User registered successfully.",
                 Data = tokens
             };
@@ -81,6 +83,7 @@ namespace CineMatch.Api.Services.UserServices
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
+                    ErrorType = ErrorType.Unauthorized,
                     ResponseMessage = "Invalid username or password."
                 };
             }
@@ -92,6 +95,7 @@ namespace CineMatch.Api.Services.UserServices
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
+                    ErrorType = ErrorType.Unauthorized,
                     ResponseMessage = "Invalid username or password."
                 };
             }
@@ -111,7 +115,50 @@ namespace CineMatch.Api.Services.UserServices
             return new BaseResponseWithDataDto<TokensResponseDto>
             {
                 IsSuccess = true,
+                ErrorType = ErrorType.None,
                 ResponseMessage = "User logged in successfully.",
+                Data = tokens
+            };
+        }
+
+
+        public async Task<BaseResponseWithDataDto<TokensResponseDto>> ReplaceRefreshAndAccessTokensAsync(RefreshTokenRequestDto dto)
+        {
+            var user = await _userManager.FindByIdAsync(dto.UserId);
+            if (user == null)
+            {
+                return new BaseResponseWithDataDto<TokensResponseDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.NotFound,
+                    ResponseMessage = "User not found.",
+                    Data = null
+                };
+            }
+            var userRoles = await _userManager.GetRolesAsync(user);
+            var tokensRefreshDto = new TokensRefreshDto
+            {
+                UserId = dto.UserId,
+                OldRefreshToken = dto.OldRefreshToken,
+                UserName = user.UserName,
+                UserRoles = userRoles.ToArray()
+            };
+            var tokens = await RefreshTokens(tokensRefreshDto);
+            if (tokens == null)
+            {
+                return new BaseResponseWithDataDto<TokensResponseDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.ServerError,
+                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
+                    Data = null
+                };
+            }
+            return new BaseResponseWithDataDto<TokensResponseDto>
+            {
+                IsSuccess = true,
+                ErrorType = ErrorType.None,
+                ResponseMessage = "Tokens refreshed successfully.",
                 Data = tokens
             };
         }
@@ -119,6 +166,39 @@ namespace CineMatch.Api.Services.UserServices
 
 
         //private methods
+        private async Task<TokensResponseDto?> RefreshTokens(TokensRefreshDto dto)
+        {
+            var refreshToken = new RefreshTokenRequestDto
+            {
+                UserId = dto.UserId,
+                OldRefreshToken = dto.OldRefreshToken
+            };
+            var newRefreshToken = await _refreshTokenService.RefreshToken(refreshToken);
+            if (newRefreshToken == null)
+            {
+                return null;
+            }
+
+            var accessToken = new AccessTokenRequestDto
+            {
+                UserId = dto.UserId,
+                UserName = dto.UserName,
+                UserRoles = dto.UserRoles.ToArray()
+            };
+            var newAccessToken = _jwtTokenService.GenerateAccessToken(accessToken);
+            if (newAccessToken == null)
+            {
+                return null;
+            }
+
+            var response = new TokensResponseDto
+            {
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken
+            };
+            return response;
+        }
+
         private async Task<TokensResponseDto?> CreateTokens(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
@@ -151,6 +231,8 @@ namespace CineMatch.Api.Services.UserServices
             return response;
         }
 
+
+        //private static methods
         private static ApplicationUser CreateUserEntity(RegisterRequestDto dto)
         {
             var user = new ApplicationUser

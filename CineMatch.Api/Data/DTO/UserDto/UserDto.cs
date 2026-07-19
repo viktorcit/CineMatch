@@ -1,4 +1,5 @@
-﻿namespace CineMatch.Api.Data.DTO.UserDto
+﻿
+namespace CineMatch.Api.Data.DTO.UserDto
 {
     public class UserDto
     {
