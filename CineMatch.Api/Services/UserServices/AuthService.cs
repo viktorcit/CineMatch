@@ -47,7 +47,7 @@ namespace CineMatch.Api.Services.UserServices
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.ServerError,
-                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
+                    ResponseMessage = "Something went wrong. There is a server-side problem please try again later.",
                     Data = null
                 };
             }
@@ -122,7 +122,7 @@ namespace CineMatch.Api.Services.UserServices
         }
 
 
-        public async Task<BaseResponseWithDataDto<TokensResponseDto>> ReplaceRefreshAndAccessTokensAsync(RefreshTokenRequestDto dto)
+        public async Task<BaseResponseWithDataDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto)
         {
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null)
@@ -179,7 +179,7 @@ namespace CineMatch.Api.Services.UserServices
                 return null;
             }
 
-            var accessToken = new AccessTokenRequestDto
+            var accessToken = new AccessTokenDto
             {
                 UserId = dto.UserId,
                 UserName = dto.UserName,
@@ -203,7 +203,7 @@ namespace CineMatch.Api.Services.UserServices
         {
             var roles = await _userManager.GetRolesAsync(user);
 
-            var accessTokenRequest = new AccessTokenRequestDto
+            var accessTokenRequest = new AccessTokenDto
             {
                 UserId = user.Id,
                 UserName = user.UserName,

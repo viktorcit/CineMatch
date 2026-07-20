@@ -22,7 +22,7 @@ namespace CineMatch.Api.Services.JwtServices
 
 
 
-        public string? GenerateAccessToken(AccessTokenRequestDto dto)
+        public string? GenerateAccessToken(AccessTokenDto dto)
         {
             var claims = new List<Claim>()
             {

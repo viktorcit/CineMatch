@@ -2,7 +2,7 @@
 
 namespace CineMatch.Api.Data.DTO.TokensDto
 {
-    public class AccessTokenRequestDto
+    public class AccessTokenDto
     {
         [Required]
         public string UserName { get; set; } = string.Empty;

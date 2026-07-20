@@ -8,6 +8,6 @@ namespace CineMatch.Api.Services.Interfaces
     {
         Task<BaseResponseWithDataDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto);
         Task<BaseResponseWithDataDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto);
-        Task<BaseResponseWithDataDto<TokensResponseDto>> ReplaceRefreshAndAccessTokensAsync(RefreshTokenRequestDto dto);
+        Task<BaseResponseWithDataDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto);
     }
 }

@@ -20,8 +20,7 @@ namespace CineMatch.Api.Services.JwtServices
 
         public async Task<string?> RefreshToken(RefreshTokenRequestDto dto)
         {
-            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == dto.OldRefreshToken);
-
+            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == dto.OldRefreshToken && t.UserId == dto.UserId);
             if (storedToken == null || storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
             {
                 return null;

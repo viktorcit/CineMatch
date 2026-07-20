@@ -5,6 +5,6 @@ namespace CineMatch.Api.Services.Interfaces
 {
     public interface IJwtTokenService
     {
-        string? GenerateAccessToken(AccessTokenRequestDto dto);
+        string? GenerateAccessToken(AccessTokenDto dto);
     }
 }

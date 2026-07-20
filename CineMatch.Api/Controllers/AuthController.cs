@@ -45,7 +45,7 @@ namespace CineMatch.Api.Controllers
         [HttpPost("refresh")]
         public async Task<ActionResult<TokensResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto dto)
         {
-            var result = await _authService.ReplaceRefreshAndAccessTokensAsync(dto);
+            var result = await _authService.RefreshUserTokensAsync(dto);
             return result.ErrorType switch
             {
                 ErrorType.Unauthorized => Unauthorized(result.ResponseMessage),
