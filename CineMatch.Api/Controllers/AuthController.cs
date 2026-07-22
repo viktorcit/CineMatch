@@ -26,6 +26,7 @@ namespace CineMatch.Api.Controllers
             {
                 ErrorType.Conflict => Conflict(result.ResponseMessage),
                 ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
                 _ => Ok(result.Data),
             };
         }

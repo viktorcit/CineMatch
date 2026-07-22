@@ -13,15 +13,18 @@ namespace CineMatch.Api.Services.UserServices
         private readonly IJwtTokenService _jwtTokenService;
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             IJwtTokenService jwtTokenService,
             UserManager<ApplicationUser> userManager,
-            IRefreshTokenService refreshTokenService)
+            IRefreshTokenService refreshTokenService,
+            ILogger<AuthService> logger)
         {
             _jwtTokenService = jwtTokenService;
             _userManager = userManager;
             _refreshTokenService = refreshTokenService;
+            _logger = logger;
         }
 
         public async Task<BaseResponseWithDataDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
@@ -39,24 +42,45 @@ namespace CineMatch.Api.Services.UserServices
             }
 
             var newUser = CreateUserEntity(dto);
+            var passwordValidationResult = await _userManager.PasswordValidators.First().ValidateAsync(_userManager, newUser, dto.Password);
+            if (!passwordValidationResult.Succeeded)
+            {
+                var errorMessages = string.Join(", ", passwordValidationResult.Errors.Select(e => e.Description));
+                _logger.LogWarning("Password validation failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
+                return new BaseResponseWithDataDto<TokensResponseDto>
+                {
+                    IsSuccess = false,
+                    ErrorType = ErrorType.BadRequest,
+                    ResponseMessage = "Password does not meet the requirements.",
+                    Errors = errorMessages,
+                    Data = null
+                };
+            }
 
             var result = await _userManager.CreateAsync(newUser, dto.Password);
             if (!result.Succeeded)
             {
+                var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
+                _logger.LogError("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
                     ErrorType = ErrorType.ServerError,
                     ResponseMessage = "Something went wrong. There is a server-side problem please try again later.",
+                    Errors = errorMessages,
                     Data = null
                 };
             }
+            _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
 
             // TODO: assign default user role after roles implementation
+
+            var passwordValid = await _userManager.CheckPasswordAsync(newUser, dto.Password);
 
             var tokens = await CreateTokens(newUser);
             if (tokens == null)
             {
+                _logger.LogError("Token generation failed for user {UserName}.", newUser.UserName);
                 return new BaseResponseWithDataDto<TokensResponseDto>
                 {
                     IsSuccess = false,
@@ -65,6 +89,7 @@ namespace CineMatch.Api.Services.UserServices
                     Data = null
                 };
             }
+            _logger.LogInformation("Tokens generated successfully for user {UserName}.", newUser.UserName);
 
             return new BaseResponseWithDataDto<TokensResponseDto>
             {
