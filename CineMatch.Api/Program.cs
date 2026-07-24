@@ -1,5 +1,6 @@
 using CineMatch.Api.Configuration;
 using CineMatch.Api.Data;
+using CineMatch.Api.Helpers;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using CineMatch.Api.Services.JwtServices;
@@ -35,6 +36,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 
 builder.Services.AddSingleton<JwtSecurityTokenHandler>();
+builder.Services.AddSingleton<ErrorFactory>();
 
 
 builder.Services.AddCors(options =>

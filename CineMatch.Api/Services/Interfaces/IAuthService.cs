@@ -6,8 +6,8 @@ namespace CineMatch.Api.Services.Interfaces
 {
     public interface IAuthService
     {
-        Task<BaseResponseWithDataDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto);
-        Task<BaseResponseWithDataDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto);
-        Task<BaseResponseWithDataDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto);
+        Task<BaseResponseDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto);
+        Task<BaseResponseDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto);
+        Task<BaseResponseDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto);
     }
 }

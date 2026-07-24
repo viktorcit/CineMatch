@@ -2,6 +2,7 @@
 using CineMatch.Api.Data.DTO.AuthDto;
 using CineMatch.Api.Data.DTO.TokensDto;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Helpers;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -27,138 +28,86 @@ namespace CineMatch.Api.Services.UserServices
             _logger = logger;
         }
 
-        public async Task<BaseResponseWithDataDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
+        public async Task<BaseResponseDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
         {
-            var existingUser = await _userManager.FindByNameAsync(dto.UserName);
-            if (existingUser != null)
+            try
             {
-                return new BaseResponseWithDataDto<TokensResponseDto>
+                var existingUser = await _userManager.FindByNameAsync(dto.UserName);
+                if (existingUser != null)
                 {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.Conflict,
-                    ResponseMessage = "Username already exists.",
-                    Data = null
-                };
-            }
+                    return ErrorFactory.Conflict<TokensResponseDto>($"User with username '{dto.UserName}' already exists.");
+                }
 
-            var newUser = CreateUserEntity(dto);
-            var passwordValidationResult = await _userManager.PasswordValidators.First().ValidateAsync(_userManager, newUser, dto.Password);
-            if (!passwordValidationResult.Succeeded)
-            {
-                var errorMessages = string.Join(", ", passwordValidationResult.Errors.Select(e => e.Description));
-                _logger.LogWarning("Password validation failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
-                return new BaseResponseWithDataDto<TokensResponseDto>
+                var newUser = CreateUserEntity(dto);
+                var passwordValidationResult = await _userManager.PasswordValidators.First().ValidateAsync(_userManager, newUser, dto.Password);
+                if (!passwordValidationResult.Succeeded)
                 {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Password does not meet the requirements.",
-                    Errors = errorMessages,
-                    Data = null
-                };
-            }
+                    var errorMessages = string.Join(", ", passwordValidationResult.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Password validation failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
 
-            var result = await _userManager.CreateAsync(newUser, dto.Password);
-            if (!result.Succeeded)
-            {
-                var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
-                _logger.LogError("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
-                return new BaseResponseWithDataDto<TokensResponseDto>
+                    return ErrorFactory.BadRequest<TokensResponseDto>("Password does not meet the requirements.");
+                }
+
+
+                var result = await _userManager.CreateAsync(newUser, dto.Password);
+                if (!result.Succeeded)
                 {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = "Something went wrong. There is a server-side problem please try again later.",
-                    Errors = errorMessages,
-                    Data = null
-                };
-            }
-            _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
+                    var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
+                    _logger.LogWarning("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
 
-            // TODO: assign default user role after roles implementation
+                    return ErrorFactory.BadRequest<TokensResponseDto>(errorMessages);
+                }
+                _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
 
-            var passwordValid = await _userManager.CheckPasswordAsync(newUser, dto.Password);
+                // TODO: assign default user role after roles implementation
 
-            var tokens = await CreateTokens(newUser);
-            if (tokens == null)
-            {
-                _logger.LogError("Token generation failed for user {UserName}.", newUser.UserName);
-                return new BaseResponseWithDataDto<TokensResponseDto>
+                var tokens = await CreateTokens(newUser);
+                if (tokens == null)
                 {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
-                    Data = null
-                };
-            }
-            _logger.LogInformation("Tokens generated successfully for user {UserName}.", newUser.UserName);
+                    _logger.LogError("Token generation failed for user {UserName}.", newUser.UserName);
+                    return ErrorFactory.ServerError<TokensResponseDto>([]);
+                }
+                _logger.LogInformation("Tokens generated successfully for user {UserName}.", newUser.UserName);
 
-            return new BaseResponseWithDataDto<TokensResponseDto>
+                return ErrorFactory.Ok(tokens, $"User '{newUser.UserName}' registered successfully.");
+            }
+            catch (Exception ex)
             {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "User registered successfully.",
-                Data = tokens
-            };
+                _logger.LogError(ex, "An error occurred during user registration.");
+                return ErrorFactory.ServerError<TokensResponseDto>([]);
+            }
         }
 
-        public async Task<BaseResponseWithDataDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto)
+        public async Task<BaseResponseDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto)
         {
             var user = await _userManager.FindByNameAsync(dto.UserName);
             if (user == null)
             {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.Unauthorized,
-                    ResponseMessage = "Invalid username or password."
-                };
+                return ErrorFactory.Unauthorized<TokensResponseDto>();
             }
 
             var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
-
             if (!passwordValid)
             {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.Unauthorized,
-                    ResponseMessage = "Invalid username or password."
-                };
+                return ErrorFactory.Unauthorized<TokensResponseDto>();
             }
 
             var tokens = await CreateTokens(user);
             if (tokens == null)
             {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
-                    Data = null
-                };
+                return ErrorFactory.ServerError<TokensResponseDto>([]);
             }
 
-            return new BaseResponseWithDataDto<TokensResponseDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "User logged in successfully.",
-                Data = tokens
-            };
+            return ErrorFactory.Ok(tokens, $"User '{user.UserName}' logged in successfully.");
         }
 
 
-        public async Task<BaseResponseWithDataDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto)
+        public async Task<BaseResponseDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto)
         {
             var user = await _userManager.FindByIdAsync(dto.UserId);
             if (user == null)
-            {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "User not found.",
-                    Data = null
-                };
+            {      
+                return ErrorFactory.NotFound<TokensResponseDto>($"User with ID '{dto.UserId}' not found.");
             }
             var userRoles = await _userManager.GetRolesAsync(user);
             var tokensRefreshDto = new TokensRefreshDto
@@ -171,21 +120,9 @@ namespace CineMatch.Api.Services.UserServices
             var tokens = await RefreshTokens(tokensRefreshDto);
             if (tokens == null)
             {
-                return new BaseResponseWithDataDto<TokensResponseDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = "Something went wrong. There is a server-side problem; please try again later.",
-                    Data = null
-                };
+                return ErrorFactory.ServerError<TokensResponseDto>([]);
             }
-            return new BaseResponseWithDataDto<TokensResponseDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Tokens refreshed successfully.",
-                Data = tokens
-            };
+            return ErrorFactory.Ok(tokens, $"Tokens refreshed successfully for user '{user.UserName}'.");
         }
 
 

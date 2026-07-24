@@ -9,6 +9,7 @@
         BadRequest,
         Timeout,
         Conflict,
-        TooManyRequests
+        TooManyRequests,
+        NoContent
     }
 }
