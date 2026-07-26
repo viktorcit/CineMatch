@@ -122,6 +122,7 @@ namespace CineMatch.Api.Services.UserServices
             {
                 return ErrorFactory.ServerError<TokensResponseDto>([]);
             }
+
             return ErrorFactory.Ok(tokens, $"Tokens refreshed successfully for user '{user.UserName}'.");
         }
 

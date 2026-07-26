@@ -1,6 +1,7 @@
 ﻿using CineMatch.Api.Data.DTO;
 using CineMatch.Api.Data.DTO.MoviesDto;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Helpers;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using System.Net.Http.Headers;
@@ -11,7 +12,7 @@ namespace CineMatch.Api.Services.MovieServices
     public class MovieSearchService : IMovieSearchService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _token;
+        private readonly string _tmdbApiToken;
         private readonly ILogger<MovieSearchService> _logger;
         public MovieSearchService
             (HttpClient httpClient,
@@ -19,35 +20,24 @@ namespace CineMatch.Api.Services.MovieServices
             ILogger<MovieSearchService> logger)
         {
             _httpClient = httpClient;
-            _token = config["Tmdb:ApiToken"]
+            _tmdbApiToken = config["Tmdb:ApiToken"]
                 ?? throw new InvalidOperationException("TMDb token not configured");
             _logger = logger;
         }
 
 
 
-        public async Task<BaseResponseWithDataDto<MovieDto>> GetMovieByUrlAsync(string inputUrl)
+        public async Task<BaseResponseDto<MovieDto>> GetMovieByUrlAsync(string inputUrl)
         {
-
             if (string.IsNullOrWhiteSpace(inputUrl))
             {
-                _logger.LogInformation("Поле ввода пустое");
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Input cannot be null"
-                };
+                _logger.LogInformation("поле ссылки пусто");
+                return ErrorFactory.BadRequest<MovieDto>("Input cannot be null.");
             }
+            string invalidResponse = "Invalid TMDb URL format.";
             if (!IsTmdbLink(inputUrl))
             {
-                _logger.LogInformation("неправильная ссылка");
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Input URl is not supported."
-                };
+                return ErrorFactory.BadRequest<MovieDto>(invalidResponse);
             }
 
             try
@@ -56,69 +46,39 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieId == 0)
                 {
                     _logger.LogInformation("неправильная ссылка");
-                    return new BaseResponseWithDataDto<MovieDto>
-                    {
-                        IsSuccess = false,
-                        ErrorType = ErrorType.BadRequest,
-                        ResponseMessage = "Invalid TMDb URL format."
-                    };
+                    return ErrorFactory.BadRequest<MovieDto>(invalidResponse);
                 }
 
                 var contentType = ContentTypeCheck(inputUrl);
                 if (contentType == ContentType.Unknown)
                 {
                     _logger.LogInformation("неправильная ссылка");
-                    return new BaseResponseWithDataDto<MovieDto>
-                    {
-                        IsSuccess = false,
-                        ErrorType = ErrorType.BadRequest,
-                        ResponseMessage = "Unsupported TMDb URL format."
-                    };
+                    return ErrorFactory.BadRequest<MovieDto>(invalidResponse);
                 }
 
                 var movieDetails = await GetMovieDetails(movieId, contentType);
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
-                    return new BaseResponseWithDataDto<MovieDto>
-                    {
-                        IsSuccess = false,
-                        ErrorType = ErrorType.NotFound,
-                        ResponseMessage = "Movie not found."
-                    };
+                    return ErrorFactory.NotFound<MovieDto>("Movie ");
                 }
                 _logger.LogInformation("фильм найден");
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "Movie details fetched successfully.",
-                    Data = movieDetails
-                };
+                return ErrorFactory.Ok(movieDetails, "Movie details fetched successfully.");
             }
             catch (Exception ex)
             {
-                _logger.LogInformation("произошла какая то ошибка");
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = $"An error occurred while fetching movie details: {ex.Message}"
-                };
+                List<string> message = [ex.Message];
+                _logger.LogInformation($"An error occurred during get movie by id: {ex}");
+                return ErrorFactory.ServerError<MovieDto>(message);
             }
         }
 
-        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear)
+        public async Task<BaseResponseDto<List<MovieDto>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear)
         {
             if (string.IsNullOrWhiteSpace(mainInput))
             {
                 _logger.LogInformation("Поле ввода пустое");
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Input cannot be null."
-                };
+                return ErrorFactory.BadRequest<List<MovieDto>>("Input cannot be null");
             }
 
             try
@@ -127,31 +87,16 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
-                    return new BaseResponseWithDataDto<List<MovieDto>>
-                    {
-                        IsSuccess = false,
-                        ErrorType = ErrorType.NotFound,
-                        ResponseMessage = "Movie not found."
-                    };
+                    return ErrorFactory.NotFound<List<MovieDto>>("Movie not found.");
                 }
                 _logger.LogInformation("фильм найден");
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "Movie details fetched successfully.",
-                    Data = movieDetails
-                };
+                return ErrorFactory.NotFound<List<MovieDto>>("Movie details fetched successfully.");
             }
             catch (Exception ex)
             {
-                _logger.LogInformation("произошла какая то ошибка");
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = $"An error occurred while searching for the movie: {ex.Message}"
-                };
+                List<string> errorMessages = [ex.Message];
+                _logger.LogInformation($"An error occurred while searching for the movie: {ex.Message}");
+                return ErrorFactory.ServerError<List<MovieDto>>(errorMessages);
             }
         }
 
@@ -175,11 +120,8 @@ namespace CineMatch.Api.Services.MovieServices
                     : $"&first_air_date_year={inputYear}";
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
-
-            var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
+            var response = await SendRequest(url);
+            if (response == null)
             {
                 return null;
             }
@@ -192,18 +134,8 @@ namespace CineMatch.Api.Services.MovieServices
                 return null;
             }
 
-            var resultsList = resultsArray
-                .EnumerateArray()
-                .Select(r => new SearchResult
-                {
-                    MovieId = r.GetProperty("id").GetInt32(),
-                    Type = r.TryGetProperty("media_type", out var typeProp)
-                    ? typeProp.GetString() == "tv" ? ContentType.tv : ContentType.movie
-                    : inputType
-                })
-                .Take(5)
-                .ToList();
-            if (resultsList.Count == 0)
+            var resultsList = GetMoviesList(resultsArray, inputType);
+            if(resultsList == null)
             {
                 return null;
             }
@@ -216,11 +148,8 @@ namespace CineMatch.Api.Services.MovieServices
         {
             var url = $"https://api.themoviedb.org/3/{type}/{movieId}?language=ru-RU";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
-
-            var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
+            var response = await SendRequest(url);
+            if(response == null)
             {
                 return null;
             }
@@ -228,64 +157,9 @@ namespace CineMatch.Api.Services.MovieServices
             var json = await response.Content.ReadAsStringAsync();
             var doc = JsonDocument.Parse(json);
 
-            var title = type == ContentType.movie
-                ? doc.RootElement.GetProperty("title").GetString()
-                : doc.RootElement.GetProperty("name").GetString();
+            var movie = GetMovieData(type, doc, movieId);
+            var responseMovie = CreateMovieDto(movie);
 
-            if (string.IsNullOrEmpty(title))
-            {
-                title = "Unknown";
-            }
-
-            var dateString = type == ContentType.movie
-                ? doc.RootElement.GetProperty("release_date").GetString()
-                : doc.RootElement.GetProperty("first_air_date").GetString();
-
-            int? year = !string.IsNullOrEmpty(dateString)
-                ? DateTime.Parse(dateString).Year
-                : null;
-
-            var overview = doc.RootElement.GetProperty("overview").GetString();
-            if (string.IsNullOrEmpty(overview))
-            {
-                overview = "Unknown";
-            }
-
-            var posterPath = doc.RootElement.GetProperty("poster_path").GetString();
-            var posterUrl = string.IsNullOrEmpty(posterPath)
-                ? string.Empty
-                : $"https://image.tmdb.org/t/p/w500{posterPath}";
-
-            var genres = doc.RootElement.GetProperty("genres").EnumerateArray()
-                .Select(g => g.GetProperty("name").GetString())
-                .Where(g => !string.IsNullOrWhiteSpace(g))
-                .ToList();
-            if (genres.Count == 0)
-            {
-                genres.Add("Unknown");
-            }
-
-            var movie = new Movie
-            {
-                Title = title,
-                Year = year,
-                Overview = overview,
-                PosterUrl = posterUrl,
-                Genres = genres,
-                TMdbId = movieId,
-                Type = type
-            };
-
-            var responseMovie = new MovieDto
-            {
-                Title = title,
-                Year = year,
-                Overview = overview,
-                PosterUrl = posterUrl,
-                Genres = genres,
-                TMdbId = movieId,
-                Type = type
-            };
             return responseMovie;
         }
 
@@ -340,7 +214,95 @@ namespace CineMatch.Api.Services.MovieServices
             return movies;
         }
 
-        private int ExtractIdFromLink(string inputUrl)
+        private async Task<HttpResponseMessage?> SendRequest(string url)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tmdbApiToken);
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+            return response;
+        }
+
+        //static private methods
+        private static Movie GetMovieData(ContentType type, JsonDocument doc, int movieId)
+        {
+            var title = type == ContentType.movie
+                ? doc.RootElement.GetProperty("title").GetString()
+                : doc.RootElement.GetProperty("name").GetString();
+
+            if (string.IsNullOrEmpty(title))
+            {
+                title = "Unknown";
+            }
+
+            var dateString = type == ContentType.movie
+                ? doc.RootElement.GetProperty("release_date").GetString()
+                : doc.RootElement.GetProperty("first_air_date").GetString();
+
+            
+            int? year = DateTime.TryParse(dateString, out var parsedData)
+                ? parsedData.Year
+                : null;
+
+            var overview = doc.RootElement.GetProperty("overview").GetString();
+            if (string.IsNullOrEmpty(overview))
+            {
+                overview = "Unknown";
+            }
+
+            var posterPath = doc.RootElement.GetProperty("poster_path").GetString();
+            var posterUrl = string.IsNullOrEmpty(posterPath)
+                ? string.Empty
+                : $"https://image.tmdb.org/t/p/w500{posterPath}";
+
+            var genres = doc.RootElement.GetProperty("genres").EnumerateArray()
+                .Select(g => g.GetProperty("name").GetString())
+                .Where(g => !string.IsNullOrWhiteSpace(g))
+                .ToList();
+            if (genres.Count == 0)
+            {
+                genres.Add("Unknown");
+            }
+
+            var movie = new Movie
+            {
+                Title = title,
+                Year = year,
+                Overview = overview,
+                PosterUrl = posterUrl,
+                Genres = genres,
+                TMdbId = movieId,
+                Type = type
+            };
+
+            return movie;
+        }
+
+        private static List<SearchResult>? GetMoviesList(JsonElement resultsArray, ContentType inputType)
+        {
+            var resultsList = resultsArray
+                .EnumerateArray()
+                .Select(r => new SearchResult
+                {
+                    MovieId = r.GetProperty("id").GetInt32(),
+                    Type = r.TryGetProperty("media_type", out var typeProp)
+                    ? typeProp.GetString() == "tv" ? ContentType.tv : ContentType.movie
+                    : inputType
+                })
+                .Take(5)
+                .ToList();
+            if (resultsList.Count == 0)
+            {
+                return null;
+            }
+            return resultsList;
+        }  
+
+        private static int ExtractIdFromLink(string inputUrl)
         {
             var marker = "/movie/";
             var markerTv = "/tv/";
@@ -368,7 +330,7 @@ namespace CineMatch.Api.Services.MovieServices
             }
         }
 
-        private bool IsTmdbLink(string input)
+        private static bool IsTmdbLink(string input)
         {
             if (input.Contains("themoviedb.org/movie/") || input.Contains("themoviedb.org/tv/"))
             {
@@ -377,7 +339,7 @@ namespace CineMatch.Api.Services.MovieServices
             return false;
         }
 
-        private ContentType ContentTypeCheck(string input)
+        private static ContentType ContentTypeCheck(string input)
         {
             if (input.Contains("themoviedb.org/movie/"))
             {
@@ -388,6 +350,21 @@ namespace CineMatch.Api.Services.MovieServices
                 return ContentType.tv;
             }
             return ContentType.Unknown;
+        }
+
+        private static MovieDto CreateMovieDto(Movie movie)
+        {
+            var movieDto = new MovieDto
+            {
+                Title = movie.Title,
+                Year = movie.Year,
+                Overview = movie.Overview,
+                PosterUrl = movie.PosterUrl,
+                Genres = movie.Genres,
+                TMdbId = movie.TMdbId,
+                Type = movie.Type
+            };
+            return movieDto;
         }
     }
 }
