@@ -3,6 +3,7 @@ using CineMatch.Api.Data.DTO;
 using CineMatch.Api.Data.DTO.MoviesDto;
 using CineMatch.Api.Data.DTO.SessionDto;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Helpers;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -22,41 +23,26 @@ namespace CineMatch.Api.Services.UserServices
 
 
 
-        public async Task<BaseResponseWithDataDto<SessionDto>> CreateSessionAsync(string clientId)
+        public async Task<BaseResponseDto<SessionDto>> CreateSessionAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
-                return new BaseResponseWithDataDto<SessionDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail<SessionDto>(ErrorType.BadRequest, "Client ID cannot be empty");
             }
             _logger.LogInformation("создание сессии");
             var existingSession = await _db.Sessions
                 .AnyAsync(s => s.CreatorClientId == clientId);
             if (existingSession)
             {
-                return new BaseResponseWithDataDto<SessionDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You already have an active session.",
-                };
+                return ErrorFactory.Fail<SessionDto>(ErrorType.BadRequest, "You already have an active session.");
             }
+
             var existingParticipant = await _db.SessionParticipants
                 .AnyAsync(p => p.ClientId == clientId);
             if (existingParticipant)
             {
-                return new BaseResponseWithDataDto<SessionDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You are already a participant of another session. Leave for creation",
-                };
+                return ErrorFactory.Fail<SessionDto>(ErrorType.Conflict, "You are already a participant of another session. Leave for creation");
             }
-
 
             var session = new Session
             {
@@ -83,18 +69,12 @@ namespace CineMatch.Api.Services.UserServices
                 Code = session.Code,
                 CreatedAt = session.CreatedAt,
                 CreatorClientId = session.CreatorClientId,
-                SessionMovies = new List<SessionMovie>(),
-                Votes = new List<Vote>(),
+                SessionMovies = [],
+                Votes = [],
             };
 
 
-            return new BaseResponseWithDataDto<SessionDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Session created successfully",
-                Data = response,
-            };
+            return ErrorFactory.Ok(response, "Session created successfully");
         }
 
 
@@ -102,56 +82,36 @@ namespace CineMatch.Api.Services.UserServices
         {
             if (string.IsNullOrWhiteSpace(code))
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session code cannot be empty",
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Session code cannot be empty");
             }
+
             var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Code == code);
             if (session == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Session not found",
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Session not found");
             }
+
             var alreadyJoined = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId && p.SessionId == session.Id);
             if (alreadyJoined != null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You are already a participant of this session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are already a participant of this session");
             }
+
             var existingParticipant = await _db.SessionParticipants.AnyAsync(p => p.ClientId == clientId);
             if (existingParticipant)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You are already a participant of another session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are already a participant of another session");
             }
+
             var sessionParticipants = await _db.SessionParticipants
                 .Where(p => p.SessionId == session.Id).ToListAsync();
             if (sessionParticipants.Count() >= 2)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session is full",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "Session is full");
             }
-            var participantNumber = sessionParticipants.Count() + 1;
+
+            var participantNumber = sessionParticipants.Count + 1;
 
             var newParticipant = new SessionParticipant
             {
@@ -164,36 +124,21 @@ namespace CineMatch.Api.Services.UserServices
             _db.SessionParticipants.Add(newParticipant);
             await _db.SaveChangesAsync();
 
-            return new BaseResponseDto
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Joined session successfully",
-            };
+            return ErrorFactory.Ok("Joined session successfully");
         }
 
 
-        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetFilmsOfSessionAsync(string clientId)
+        public async Task<BaseResponseDto<List<MovieDto>>> GetFilmsOfSessionAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.BadRequest, "Client ID cannot be empty");
             }
             var clientSession = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId);
             if (clientSession == null)
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a participant of any session",
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.BadRequest, "You are not a participant of any session");
             }
             var sessionMovies = await _db.SessionMovies
                 .Where(sm => sm.SessionId == clientSession.SessionId)
@@ -209,25 +154,13 @@ namespace CineMatch.Api.Services.UserServices
                     Genres = sm.Movie.Genres
                 }).ToListAsync();
 
-            if (sessionMovies == null || !sessionMovies.Any())
+            if (sessionMovies == null || sessionMovies.Count == 0)
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "No movies found for this session",
-                    Data = new List<MovieDto>(),
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.NoContent, "No movies found for this session");
             }
 
 
-            return new BaseResponseWithDataDto<List<MovieDto>>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Films retrieved successfully",
-                Data = sessionMovies,
-            };
+            return ErrorFactory.Ok(sessionMovies, "Films retrieved successfully");
         }
 
 
@@ -235,102 +168,57 @@ namespace CineMatch.Api.Services.UserServices
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be empty");
             }
 
             var sessionParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId);
             if (sessionParticipant == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a participant in any session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant in any session");
             }
             var sessionCreatorExist = await _db.Sessions
                 .AnyAsync(s => s.Id == sessionParticipant.SessionId && s.CreatorClientId == clientId);
             if (sessionCreatorExist)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You are a creator of this session. End session for leaving",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are a creator of this session. End session for leaving");
             }
 
             _db.SessionParticipants.Remove(sessionParticipant);
             await _db.SaveChangesAsync();
 
-            return new BaseResponseDto
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Left session successfully",
-            };
+            return ErrorFactory.Ok("Left session successfully");
         }
 
         public async Task<BaseResponseDto> EndSessionAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be empty");
             }
             var sessionCreator = await _db.Sessions
                 .FirstOrDefaultAsync(p => p.CreatorClientId == clientId);
             if (sessionCreator == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You don't have an active session that you created to end it.",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You don't have an active session that you created to end it.");
             }
             _db.Sessions.Remove(sessionCreator);
             await _db.SaveChangesAsync();
-            return new BaseResponseDto
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Session ended successfully",
-            };
+            return ErrorFactory.Ok("Session ended successfully");
         }
 
         public async Task<BaseResponseDto> LikeFilmsAsync(string clientId, int? movieId)
         {
             if (string.IsNullOrWhiteSpace(clientId) || !movieId.HasValue)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID and movie ID cannot be empty",
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID and movie ID cannot be empty");
             }
 
             var clientParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId);
             if (clientParticipant == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a participant of any session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant of any session");
             }
 
             var sessionId = clientParticipant.SessionId;
@@ -338,47 +226,27 @@ namespace CineMatch.Api.Services.UserServices
                 .FirstOrDefaultAsync(s => s.Id == sessionId);
             if (clientSession == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Session not found",
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Session not found");
             }
 
             var sessionMovie = await _db.SessionMovies
                 .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId);
             if (sessionMovie == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Movie not found in this session",
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Movie not found in this session");
             }
             var participantNumber = clientParticipant.ParticipantNumber;
             _logger.LogInformation("участник {participantNumber}", participantNumber);
             if (participantNumber != 1 && participantNumber != 2)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Invalid participant number",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "Invalid participant number");
             }
 
             var existingVote = await _db.Votes
             .AnyAsync(v => v.ParticipantNumber == participantNumber && v.SessionId == sessionId && v.MovieId == movieId);
             if (existingVote)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You have already voted for this session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You have already voted for this session");
             }
 
             var vote = new Vote
@@ -396,36 +264,21 @@ namespace CineMatch.Api.Services.UserServices
 
 
             _logger.LogInformation("участник {participantNumber} голосует за фильм {movieId} в сессии {sessionId}", participantNumber, movieId, sessionId);
-            return new BaseResponseDto
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Film liked successfully",
-            };
+            return ErrorFactory.Ok("Film liked successfully");
         }
 
         public async Task<BaseResponseDto> DislikeFilmsAsync(string clientId, int? movieId)
         {
             if (string.IsNullOrWhiteSpace(clientId) || !movieId.HasValue)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID and movie ID cannot be empty",
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID and movie ID cannot be empty");
             }
 
             var clientParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId);
             if (clientParticipant == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a participant of any session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant of any session");
             }
 
             var sessionId = clientParticipant.SessionId;
@@ -433,45 +286,25 @@ namespace CineMatch.Api.Services.UserServices
                 .FirstOrDefaultAsync(s => s.Id == sessionId);
             if (clientSession == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Session not found",
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Session not found");
             }
             var sessionMovie = await _db.SessionMovies
                 .FirstOrDefaultAsync(sm => sm.SessionId == sessionId && sm.MovieId == movieId.Value);
             if (sessionMovie == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Movie not found in this session",
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Movie not found in this session");
             }
             var participantNumber = clientParticipant.ParticipantNumber;
             if (participantNumber != 1 && participantNumber != 2)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Invalid participant number",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "Invalid participant number");
             }
 
             var existingVote = await _db.Votes
             .AnyAsync(v => v.ParticipantNumber == participantNumber && v.SessionId == sessionId && v.MovieId == movieId);
             if (existingVote)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You have already voted for this session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You have already voted for this session");
             }
 
             var vote = new Vote
@@ -487,48 +320,28 @@ namespace CineMatch.Api.Services.UserServices
             _db.Votes.Add(vote);
             await _db.SaveChangesAsync();
 
-            return new BaseResponseDto
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Film disliked successfully",
-            };
+            return ErrorFactory.Ok("Film disliked successfully");
         }
 
 
-        public async Task<BaseResponseWithDataDto<List<MovieDto>>> GetMatchedInSessionMovieAsync(string clientId)
+        public async Task<BaseResponseDto<List<MovieDto>>> GetMatchedInSessionMovieAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.BadRequest, "Client ID cannot be empty");
             }
             var clientParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId);
             if (clientParticipant == null)
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a participant of any session",
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.Conflict, "You are not a participant of any session");
             }
             var sessionId = clientParticipant.SessionId;
             var clientSession = await _db.Sessions
                 .FirstOrDefaultAsync(s => s.Id == sessionId);
             if (clientSession == null)
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Session not found",
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.NotFound, "Session not found");
             }
 
             var matchedMovieIds = await _db.Votes
@@ -538,25 +351,19 @@ namespace CineMatch.Api.Services.UserServices
                 .Select(g => g.Key)
                 .ToListAsync();
 
-            if (matchedMovieIds == null || !matchedMovieIds.Any())
+            if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "No matched movies found for this session",
-                    Data = null,
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
-            List<MovieDto> matchedMovie = new List<MovieDto>();
+            List<MovieDto> matchedMovies = [];
 
             foreach (var movieId in matchedMovieIds)
             {
                 var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == movieId);
                 if (movie != null)
                 {
-                    matchedMovie.Add(new MovieDto
+                    matchedMovies.Add(new MovieDto
                     {
                         Id = movie.Id,
                         TMdbId = movie.TMdbId,
@@ -569,91 +376,49 @@ namespace CineMatch.Api.Services.UserServices
                     });
                 }
             }
-            if (matchedMovie == null || !matchedMovie.Any())
+            if (matchedMovies == null || matchedMovies.Count == 0)
             {
-                return new BaseResponseWithDataDto<List<MovieDto>>
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "No matched movies found for this session",
-                    Data = null,
-                };
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
 
-            return new BaseResponseWithDataDto<List<MovieDto>>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Matched movies retrieved successfully",
-                Data = matchedMovie,
-            };
+            return ErrorFactory.Ok(matchedMovies, "Matched movies retrieved successfully");
         }
 
         public async Task<BaseResponseDto> ClearSessionVotesAsync(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be empty");
             }
             var sessionCreator = await _db.Sessions
                 .FirstOrDefaultAsync(p => p.CreatorClientId == clientId);
             if (sessionCreator == null)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a creator of any session",
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a creator of any session");
             }
             var sessionId = sessionCreator.Id;
             var votesToRemove = await _db.Votes.Where(v => v.SessionId == sessionId).ToListAsync();
-            if (votesToRemove == null || !votesToRemove.Any())
+            if (votesToRemove == null || votesToRemove.Count == 0)
             {
-                return new BaseResponseDto
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "No votes to clear for this session",
-                };
+                return ErrorFactory.Fail(ErrorType.NoContent, "No votes to clear for this session");
             }
             _db.Votes.RemoveRange(votesToRemove);
             await _db.SaveChangesAsync();
-            return new BaseResponseDto
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Session votes cleared successfully",
-            };
+            return ErrorFactory.Ok("Session votes cleared successfully");
         }
 
-        public async Task<BaseResponseWithDataDto<MovieDto>> GetRandomMatchedFilmAsync(string clientId)
+        public async Task<BaseResponseDto<MovieDto>> GetRandomMatchedFilmAsync(string clientId)
         {
             if (string.IsNullOrEmpty(clientId))
             {
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID cannot be empty",
-                };
+                return ErrorFactory.Fail<MovieDto>(ErrorType.BadRequest, "Client ID cannot be empty");
             }
             var clientParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.ClientId == clientId);
             if (clientParticipant == null)
             {
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "You are not a participant of any session",
-                };
+                return ErrorFactory.Fail<MovieDto>(ErrorType.Conflict, "You are not a participant of any session");
             }
             var sessionId = clientParticipant.SessionId;
             var matchedMovieIds = await _db.Votes
@@ -662,45 +427,31 @@ namespace CineMatch.Api.Services.UserServices
                 .Where(g => g.Select(v => v.ParticipantNumber).Distinct().Count() == 2)
                 .Select(g => g.Key)
                 .ToListAsync();
-            if (matchedMovieIds == null || !matchedMovieIds.Any())
+            if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = true,
-                    ErrorType = ErrorType.None,
-                    ResponseMessage = "No matched movies found for this session",
-                    Data = null,
-                };
+                return ErrorFactory.Fail<MovieDto>(ErrorType.NoContent, "No matched movies found for this session");
             }
             var random = new Random();
             var randomMovieId = matchedMovieIds[random.Next(matchedMovieIds.Count)];
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == randomMovieId);
             if (movie == null)
             {
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Matched movie not found",
-                };
+                return ErrorFactory.Fail<MovieDto>(ErrorType.NotFound, "Matched movie not found");
             }
-            return new BaseResponseWithDataDto<MovieDto>
+
+            var response = new MovieDto
             {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Random matched movie retrieved successfully",
-                Data = new MovieDto
-                {
-                    Id = movie.Id,
-                    TMdbId = movie.TMdbId,
-                    Type = movie.Type,
-                    Title = movie.Title,
-                    Year = movie.Year,
-                    Overview = movie.Overview,
-                    PosterUrl = movie.PosterUrl,
-                    Genres = movie.Genres,
-                },
+                Id = movie.Id,
+                TMdbId = movie.TMdbId,
+                Type = movie.Type,
+                Title = movie.Title,
+                Year = movie.Year,
+                Overview = movie.Overview,
+                PosterUrl = movie.PosterUrl,
+                Genres = movie.Genres,
             };
+
+            return ErrorFactory.Ok(response, "Random matched movie retrieved successfully");
         }
 
 

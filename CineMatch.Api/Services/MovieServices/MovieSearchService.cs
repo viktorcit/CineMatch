@@ -32,12 +32,11 @@ namespace CineMatch.Api.Services.MovieServices
             if (string.IsNullOrWhiteSpace(inputUrl))
             {
                 _logger.LogInformation("поле ссылки пусто");
-                return ErrorFactory.BadRequest<MovieDto>("Input cannot be null.");
+                return ErrorFactory.Fail<MovieDto>(ErrorType.BadRequest, "Input cannot be null.");
             }
-            string invalidResponse = "Invalid TMDb URL format.";
             if (!IsTmdbLink(inputUrl))
             {
-                return ErrorFactory.BadRequest<MovieDto>(invalidResponse);
+                return ErrorFactory.Fail<MovieDto>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
             }
 
             try
@@ -46,30 +45,29 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieId == 0)
                 {
                     _logger.LogInformation("неправильная ссылка");
-                    return ErrorFactory.BadRequest<MovieDto>(invalidResponse);
+                    return ErrorFactory.Fail<MovieDto>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
                 var contentType = ContentTypeCheck(inputUrl);
                 if (contentType == ContentType.Unknown)
                 {
                     _logger.LogInformation("неправильная ссылка");
-                    return ErrorFactory.BadRequest<MovieDto>(invalidResponse);
+                    return ErrorFactory.Fail<MovieDto>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
                 var movieDetails = await GetMovieDetails(movieId, contentType);
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
-                    return ErrorFactory.NotFound<MovieDto>("Movie ");
+                    return ErrorFactory.Fail<MovieDto>(ErrorType.NotFound, "Movie not found");
                 }
                 _logger.LogInformation("фильм найден");
                 return ErrorFactory.Ok(movieDetails, "Movie details fetched successfully.");
             }
             catch (Exception ex)
             {
-                List<string> message = [ex.Message];
-                _logger.LogInformation($"An error occurred during get movie by id: {ex}");
-                return ErrorFactory.ServerError<MovieDto>(message);
+                _logger.LogInformation($"An error occurred during get movie by id: {ex.Message}");
+                return ErrorFactory.Fail<MovieDto>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }
 
@@ -78,7 +76,7 @@ namespace CineMatch.Api.Services.MovieServices
             if (string.IsNullOrWhiteSpace(mainInput))
             {
                 _logger.LogInformation("Поле ввода пустое");
-                return ErrorFactory.BadRequest<List<MovieDto>>("Input cannot be null");
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.BadRequest, "Input cannot be null");
             }
 
             try
@@ -87,16 +85,15 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
-                    return ErrorFactory.NotFound<List<MovieDto>>("Movie not found.");
+                    return ErrorFactory.Fail<List<MovieDto>>(ErrorType.BadRequest, "Movie not found.");
                 }
                 _logger.LogInformation("фильм найден");
-                return ErrorFactory.NotFound<List<MovieDto>>("Movie details fetched successfully.");
+                return ErrorFactory.Ok(movieDetails, "Movie details fetched successfully.");
             }
             catch (Exception ex)
             {
-                List<string> errorMessages = [ex.Message];
                 _logger.LogInformation($"An error occurred while searching for the movie: {ex.Message}");
-                return ErrorFactory.ServerError<List<MovieDto>>(errorMessages);
+                return ErrorFactory.Fail<List<MovieDto>>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }
 

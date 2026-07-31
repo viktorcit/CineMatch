@@ -2,7 +2,7 @@
 using CineMatch.Api.Data.DTO;
 using CineMatch.Api.Data.DTO.UserDto;
 using CineMatch.Api.Enums;
-using CineMatch.Api.Services.Interfaces;
+using CineMatch.Api.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace CineMatch.Api.Services.UserServices
@@ -20,94 +20,9 @@ namespace CineMatch.Api.Services.UserServices
 
 
 
-
-
-
-
-        //public async Task<BaseResponseWithDataDto<UserDto>> GetAccountInfo(string accountId)
-        //{
-        //    if (string.IsNullOrWhiteSpace(accountId))
-        //    {
-        //        return new BaseResponseWithDataDto<UserDto>
-        //        {
-        //            IsSuccess = false,
-        //            ResponseMessage = "Account ID cannot be empty.",
-        //            ErrorType = ErrorType.BadRequest
-        //        };
-        //    }
-        //    //var account = await _db.Users.FirstOrDefaultAsync(a => a.PublicId == accountId);
-        //    //if (account == null)
-        //    //{
-        //    //    return new BaseResponseWithDataDto<UserDto>
-        //    //    {
-        //    //        IsSuccess = false,
-        //    //        ResponseMessage = "No account found.",
-        //    //        ErrorType = ErrorType.NotFound
-        //    //    };
-        //    //}
-        //    var responseData = new UserDto
-        //    {
-        //        Id = account.Id,
-        //        CreatedAt = account.CreatedAt
-        //    };
-        //    return new BaseResponseWithDataDto<UserDto>
-        //    {
-        //        IsSuccess = true,
-        //        ResponseMessage = "Account information retrieved successfully.",
-        //        ErrorType = ErrorType.None,
-        //        Data = responseData
-        //    };
-        //}
-
-
-        public async Task<BaseResponseWithDataDto<UserDto>> SwitchAccount(string accountId, string secret)
+        public async Task<BaseResponseDto<UserDto>> GetAccountInfo()
         {
-            if (string.IsNullOrWhiteSpace(accountId))
-            {
-                return new BaseResponseWithDataDto<UserDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Account ID cannot be empty.",
-                    ErrorType = ErrorType.BadRequest
-                };
-            }
-            if (string.IsNullOrWhiteSpace(secret))
-            {
-                return new BaseResponseWithDataDto<UserDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Secret cannot be empty.",
-                    ErrorType = ErrorType.BadRequest
-                };
-            }
-
-            var account = await _db.Users.FirstOrDefaultAsync();
-            if (account == null)
-            {
-                return new BaseResponseWithDataDto<UserDto>
-                {
-                    IsSuccess = false,
-                    ResponseMessage = "Account not found.",
-                    ErrorType = ErrorType.NotFound
-                };
-            }
-
-            //var responseData = new UserDto
-            //{
-            //    Id = account.Id,
-            //    PublicId = account.PublicId,
-            //    Secret = account.Secret,
-            //    CreatedAt = account.CreatedAt
-            //};
-
-
-            return new BaseResponseWithDataDto<UserDto>
-            {
-                IsSuccess = true,
-                ResponseMessage = $"Account {accountId} switched successfully.",
-                ErrorType = ErrorType.None,
-                //Data = responseData
-            };
+            return ErrorFactory.Ok<UserDto>(default, "Account information successfully retrieved.");
         }
     }
 }

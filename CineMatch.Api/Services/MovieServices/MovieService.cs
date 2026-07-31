@@ -1,8 +1,8 @@
 ﻿using CineMatch.Api.Data;
 using CineMatch.Api.Data.DTO;
 using CineMatch.Api.Data.DTO.MoviesDto;
-using CineMatch.Api.Data.DTO.MoviesDTO;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Helpers;
 using CineMatch.Api.Model;
 using CineMatch.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -20,57 +20,32 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
 
-        public async Task<BaseResponseWithDataDto<SaveMovieDto>> SaveMovieAsync(MovieDto dto, string clientId)
+        public async Task<BaseResponseDto> SaveMovieAsync(MovieDto dto, string clientId)
         {
             _logger.LogInformation("Сохранение фильма");
             if (dto == null)
             {
                 _logger.LogInformation("Нет данных для сохранения");
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Movie data cannot be null."
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest ,"Movie data cannot be null.");
             }
             if (string.IsNullOrEmpty(dto.Title))
             {
                 _logger.LogInformation("Название фильма не указано");
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Movie title is required."
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Movie title is required.");
             }
             if (dto.TMdbId <= 0)
             {
                 _logger.LogInformation("Некорректный TMDb ID");
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "TMDb ID must be a positive integer."
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "TMDb ID must be a positive integer.");
             }
             if (dto.Year.HasValue && (dto.Year < 1888 || dto.Year > DateTime.Now.Year + 1))
             {
                 _logger.LogInformation("Некорректный год выпуска");
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Year must be between 1888 and next year."
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "TMDb ID must be a positive integer.");
             }
             if (string.IsNullOrEmpty(clientId))
             {
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Client ID is required."
-                };
+                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be null");
             }
 
             var clientSessionExist = await _db.Sessions
@@ -78,23 +53,13 @@ namespace CineMatch.Api.Services.MovieServices
             if (clientSessionExist == null)
             {
                 _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", clientId);
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You are not in any session and cannot save movies or session closed."
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "You are not in any session and cannot save movies or session closed.");
             }
 
             var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Id == clientSessionExist.Id);
             if (session == null)
             {
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "Session not found for the client."
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Session not found for the client.");
             }
 
             var movieExists = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == dto.TMdbId && m.Type == dto.Type);
@@ -104,99 +69,33 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieExistSession != null)
                 {
                     _logger.LogInformation("Фильм уже добавлен в сессию и есть в базе данных");
-                    return new BaseResponseWithDataDto<SaveMovieDto>
-                    {
-                        IsSuccess = false,
-                        ErrorType = ErrorType.Conflict,
-                        ResponseMessage = "Movie with the same TMDb ID and type already exists in the session and database."
-                    };
+                    return ErrorFactory.Fail(ErrorType.Conflict, "Movie with the same TMDb ID and type already exists in your session");
                 }
                 else if(movieExistSession == null)
                 {
                     _logger.LogInformation("Фильм уже существует в базе данных, но не добавлен в сессию. Добавляем фильм в сессию.");
-                    var sessionMovie = new SessionMovie
-                    {
-                        SessionId = session.Id,
-                        MovieId = movieExists.Id,
-                        Session = session,
-                        Movie = movieExists
-                    };
+                    var sessionMovie = CreateSessionMovieEntity(session, movieExists);
                     _db.SessionMovies.Add(sessionMovie);
                     await _db.SaveChangesAsync();
-                    var responseOne = new SaveMovieDto
-                    {
-                        MovieId = movieExists.Id,
-                        SessionId = session.Id,
-                        TMdbId = movieExists.TMdbId,
-                        Type = movieExists.Type,
-                        Title = movieExists.Title,
-                        Year = movieExists.Year,
-                        Overview = movieExists.Overview,
-                        PosterUrl = movieExists.PosterUrl,
-                        Genres = movieExists.Genres
-                    };
-                    return new BaseResponseWithDataDto<SaveMovieDto>
-                    {
-                        IsSuccess = true,
-                        ErrorType = ErrorType.None,
-                        ResponseMessage = "Movie already exists in the database but has been added to the session.",
-                        Data = responseOne
-                    };
+
+                    return ErrorFactory.Ok("Movie has been added to the session.");
                 }
 
-
                 _logger.LogInformation("Фильм уже существует в базе данных");
-                return new BaseResponseWithDataDto<SaveMovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.Conflict,
-                    ResponseMessage = "Movie with the same TMDb ID and type already exists."
-                };
+                return ErrorFactory.Fail(ErrorType.Conflict, "Movie with the same TMDb ID and type already exists.");
             }
 
-            var movie = new Movie
+            try
             {
-                TMdbId = dto.TMdbId,
-                Type = dto.Type,
-                Title = dto.Title,
-                Year = dto.Year,
-                Overview = dto.Overview,
-                PosterUrl = dto.PosterUrl,
-                Genres = dto.Genres
-            };
-
-            var sessionMovieTwo = new SessionMovie
+                var addFilm = await AddFilmInDbAndSession(dto, session);
+            }
+            catch (Exception ex)
             {
-                SessionId = session.Id,
-                MovieId = movie.Id,
-                Session = session,
-                Movie = movie
-            };
+                _logger.LogError("Не удалось добавить фильм в бд и сессию: {ex}", ex);
+                return ErrorFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
+            }
 
-            _db.Movies.Add(movie);
-            _db.SessionMovies.Add(sessionMovieTwo);
-            await _db.SaveChangesAsync();
-
-            var responseTwo = new SaveMovieDto
-            {
-                MovieId = movie.Id,
-                TMdbId = movie.TMdbId,
-                Type = movie.Type,
-                Title = movie.Title,
-                Year = movie.Year,
-                Overview = movie.Overview,
-                PosterUrl = movie.PosterUrl,
-                Genres = movie.Genres,
-                SessionId = session.Id,
-            };
-
-            return new BaseResponseWithDataDto<SaveMovieDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Movie saved successfully.",
-                Data = responseTwo
-            };
+            return ErrorFactory.Ok("Movie saved successfully.");
         }
 
         public async Task<List<MovieDto>> GetAllMoviesAsync()
@@ -218,18 +117,13 @@ namespace CineMatch.Api.Services.MovieServices
             return movies;
         }
 
-        public async Task<BaseResponseWithDataDto<MovieDto>> GetMovieByIdAsync(int id)
+        public async Task<BaseResponseDto<MovieDto>> GetMovieByIdAsync(int id)
         {
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == id);
             if (movie == null)
             {
                 _logger.LogInformation("Фильм с ID {Id} не найден", id);
-                return new BaseResponseWithDataDto<MovieDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Movie not found."
-                };
+                return ErrorFactory.Fail<MovieDto>(ErrorType.NotFound, "Movie not found.");
             }
 
             var response = new MovieDto
@@ -244,14 +138,8 @@ namespace CineMatch.Api.Services.MovieServices
                 Genres = movie.Genres
             };
 
-            _logger.LogInformation("Фильм с ID {Id}найден", id);
-            return new BaseResponseWithDataDto<MovieDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Movie retrieved successfully.",
-                Data = response
-            };
+            _logger.LogInformation("Фильм с ID {Id}найден", movie.Id);
+            return ErrorFactory.Ok(response, "Movie retrieved successfully.");
         }
 
         public async Task<BaseResponseDto> DeleteMovieAsync(int id)
@@ -260,12 +148,7 @@ namespace CineMatch.Api.Services.MovieServices
             if (movie == null)
             {
                 _logger.LogInformation("Фильм с ID {id} не найден", id);
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.NotFound,
-                    ResponseMessage = "Movie not found."
-                };
+                return ErrorFactory.Fail(ErrorType.NotFound, "Movie not found.");
             }
 
             try
@@ -275,22 +158,54 @@ namespace CineMatch.Api.Services.MovieServices
             }
             catch (Exception ex)
             {
+                List<string> errorMessage = [ex.Message];
                 _logger.LogError(ex, "Ошибка при удалении фильма с ID {id}", id);
-                return new BaseResponseDto
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.ServerError,
-                    ResponseMessage = "An error occurred while deleting the movie."
-                };
+                return ErrorFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
             }
 
             _logger.LogInformation("Фильм с TMDb ID {id} удален", id);
-            return new BaseResponseWithDataDto<MovieDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "Movie has been deleted."
-            };
+            return ErrorFactory.Fail(ErrorType.NoContent, "Movie has been deleted.");
         }
+
+        //private methods
+        private async Task<bool> AddFilmInDbAndSession(MovieDto dto, Session session)
+        {
+            var movie = CreateMovieEntity(dto);
+            var sessionMovieTwo = CreateSessionMovieEntity(session, movie);
+
+            await _db.Movies.AddAsync(movie);
+            await _db.SessionMovies.AddAsync(sessionMovieTwo);
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        //static private methods
+        private static Movie CreateMovieEntity(MovieDto dto)
+        {
+            var movie = new Movie
+            {
+                TMdbId = dto.TMdbId,
+                Type = dto.Type,
+                Title = dto.Title,
+                Year = dto.Year,
+                Overview = dto.Overview,
+                PosterUrl = dto.PosterUrl,
+                Genres = dto.Genres
+            };
+            return movie;
+        }
+
+        private static SessionMovie CreateSessionMovieEntity(Session session, Movie movie)
+        {
+            var sessionMovie = new SessionMovie
+            {
+                SessionId = session.Id,
+                MovieId = movie.Id,
+                Session = session,
+                Movie = movie
+            };
+            return sessionMovie;
+        }
+
     }
 }

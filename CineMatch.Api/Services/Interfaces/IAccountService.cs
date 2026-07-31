@@ -5,7 +5,7 @@ namespace CineMatch.Api.Services.Interfaces
 {
     public interface IAccountService
     {
-        Task<BaseResponseWithDataDto<UserDto>> GetAccountInfo(string accountId);
-        Task<BaseResponseWithDataDto<UserDto>> SwitchAccount(string accountId, string secret);
+        Task<BaseResponseDto<UserDto>> GetAccountInfo(string accountId);
+        Task<BaseResponseDto<UserDto>> SwitchAccount(string accountId, string secret);
     }
 }
