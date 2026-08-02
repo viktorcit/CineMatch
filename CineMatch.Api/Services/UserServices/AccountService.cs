@@ -1,28 +1,25 @@
 ﻿using CineMatch.Api.Data;
-using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Data.DTO.UserDto;
-using CineMatch.Api.Enums;
+using CineMatch.Api.Data.DTO.ResponsesDto;
+using CineMatch.Api.Data.DTO.ResponsesDto.User;
 using CineMatch.Api.Helpers;
-using Microsoft.EntityFrameworkCore;
+using CineMatch.Api.Services.Interfaces.IUserServices;
 
 namespace CineMatch.Api.Services.UserServices
 {
-    public class AccountService //: IAccountService
+    public class AccountService : IAccountService
     {
-        private readonly ILogger<AccountService> _logger;
         private readonly AppDbContext _db;
 
-        public AccountService(ILogger<AccountService> logger, AppDbContext db)
+        public AccountService(AppDbContext db)
         {
-            _logger = logger;
             _db = db;
         }
 
 
 
-        public async Task<BaseResponseDto<UserDto>> GetAccountInfo()
+        public async Task<BaseResponseDto<UserResponseDto>> GetAccountInfo()
         {
-            return ErrorFactory.Ok<UserDto>(default, "Account information successfully retrieved.");
+            return ErrorFactory.Ok<UserResponseDto>(default, "Account information successfully retrieved.");
         }
     }
 }

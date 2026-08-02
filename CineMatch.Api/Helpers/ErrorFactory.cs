@@ -1,4 +1,4 @@
-﻿using CineMatch.Api.Data.DTO;
+﻿using CineMatch.Api.Data.DTO.ResponsesDto;
 using CineMatch.Api.Enums;
 
 namespace CineMatch.Api.Helpers

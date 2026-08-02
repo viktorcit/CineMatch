@@ -1,10 +1,13 @@
-﻿using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Data.DTO.AuthDto;
-using CineMatch.Api.Data.DTO.TokensDto;
+﻿using CineMatch.Api.Data.Contracts;
+using CineMatch.Api.Data.DTO.RequestsDto.Auth;
+using CineMatch.Api.Data.DTO.RequestsDto.Tokens;
+using CineMatch.Api.Data.DTO.ResponsesDto;
+using CineMatch.Api.Data.DTO.ResponsesDto.Tokens;
+using CineMatch.Api.Entity;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
-using CineMatch.Api.Model;
-using CineMatch.Api.Services.Interfaces;
+using CineMatch.Api.Services.Interfaces.IJwtServices;
+using CineMatch.Api.Services.Interfaces.IUserServices;
 using Microsoft.AspNetCore.Identity;
 
 namespace CineMatch.Api.Services.UserServices
@@ -109,7 +112,7 @@ namespace CineMatch.Api.Services.UserServices
                 return ErrorFactory.Fail<TokensResponseDto>(ErrorType.NotFound, $"User with ID '{dto.UserId}' not found.");
             }
             var userRoles = await _userManager.GetRolesAsync(user);
-            var tokensRefreshDto = new TokensRefreshDto
+            var tokensRefreshDto = new TokensRefreshInfo
             {
                 UserId = dto.UserId,
                 OldRefreshToken = dto.OldRefreshToken,
@@ -128,7 +131,7 @@ namespace CineMatch.Api.Services.UserServices
 
 
         //private methods
-        private async Task<TokensResponseDto?> RefreshTokens(TokensRefreshDto dto)
+        private async Task<TokensResponseDto?> RefreshTokens(TokensRefreshInfo dto)
         {
             var refreshToken = new RefreshTokenRequestDto
             {
@@ -141,7 +144,7 @@ namespace CineMatch.Api.Services.UserServices
                 return null;
             }
 
-            var accessToken = new AccessTokenDto
+            var accessToken = new AccessTokenInfo
             {
                 UserId = dto.UserId,
                 UserName = dto.UserName,
@@ -165,7 +168,7 @@ namespace CineMatch.Api.Services.UserServices
         {
             var roles = await _userManager.GetRolesAsync(user);
 
-            var accessTokenRequest = new AccessTokenDto
+            var accessTokenRequest = new AccessTokenInfo
             {
                 UserId = user.Id,
                 UserName = user.UserName,

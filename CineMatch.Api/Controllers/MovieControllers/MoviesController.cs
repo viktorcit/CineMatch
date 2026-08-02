@@ -1,0 +1,116 @@
+﻿using CineMatch.Api.Data.Contracts;
+using CineMatch.Api.Data.DTO.RequestsDto.Movie;
+using CineMatch.Api.Enums;
+using CineMatch.Api.Services.Interfaces.IMovieServices;
+using Microsoft.AspNetCore.Mvc;
+
+namespace CineMatch.Api.Controllers.MovieControllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class MoviesController : ControllerBase
+    {
+        private readonly IMovieSearchService _movieSearchService;
+        private readonly IMovieService _movieService;
+        private readonly ILogger<MoviesController> _logger;
+
+        public MoviesController(IMovieSearchService movieSearchService, ILogger<MoviesController> logger, IMovieService movieService)
+        {
+            _movieSearchService = movieSearchService;
+            _logger = logger;
+            _movieService = movieService;
+        }
+
+
+        [HttpGet]
+        public async Task<ActionResult<List<MovieInfo>>> GetAllMoviesAsync()
+        {
+            _logger.LogInformation("попытка получить все фильмы из базы данных");
+            var result = await _movieService.GetAllMoviesAsync();
+            return result;
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<MovieInfo>> GetMovieByIdAsync([FromRoute] int id, [FromQuery] ContentType type)
+        {
+            _logger.LogInformation("попытка получить фильм по id");
+            if (id <= 0)
+            {
+                _logger.LogInformation("Некорректный id");
+                return NotFound("Movie not found");
+            }
+            var result = await _movieService.GetMovieByIdAsync(id);
+            return result.ErrorType switch
+            {
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                _ => Ok(result.Data)
+            };
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<MovieInfo>> GetMovieByUrlAsync([FromBody] SearchMovieRequest dto)
+        {
+            _logger.LogInformation("попытка найти фильм по ссылке");
+            var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput);
+
+            return result.ErrorType switch
+            {
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok(result.Data)
+            };
+        }
+
+        [HttpPost("search")]
+        public async Task<ActionResult<List<MovieInfo>>> GetMovieBySearchAsync([FromBody] SearchMovieRequest dto)
+        {
+            _logger.LogInformation("попытка найти фильм по названию");
+            var result = await _movieSearchService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year);
+
+
+            return result.ErrorType switch
+            {
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok(result.Data)
+            };
+        }
+
+        [HttpPost("save/{clientId}")]
+        public async Task<ActionResult> SaveMovieAsync(string clientId, [FromBody] MovieInfo movieDto)
+        {
+            _logger.LogInformation("попытка добавить фильм в базу данных");
+            var result = await _movieService.SaveMovieAsync(movieDto, clientId);
+
+            return result.ErrorType switch
+            {
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
+                ErrorType.Conflict => Conflict(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok(result.ResponseMessage)
+            };
+        }
+
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteMovieAsync(int id)
+        {
+            _logger.LogInformation("попытка удалить фильм из базы данных");
+            if (id <= 0)
+            {
+                _logger.LogInformation("Некорректный id");
+                return NotFound("Movie not found for deletion");
+            }
+            var movie = await _movieService.GetMovieByIdAsync(id);
+            var result = await _movieService.DeleteMovieAsync(id);
+            return result.ErrorType switch
+            {
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
+                _ => Ok()
+            };
+        }
+    }
+}

@@ -1,6 +1,6 @@
 ﻿using CineMatch.Api.Configuration;
-using CineMatch.Api.Data.DTO.TokensDto;
-using CineMatch.Api.Services.Interfaces;
+using CineMatch.Api.Data.Contracts;
+using CineMatch.Api.Services.Interfaces.IJwtServices;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -22,7 +22,7 @@ namespace CineMatch.Api.Services.JwtServices
 
 
 
-        public string? GenerateAccessToken(AccessTokenDto dto)
+        public string? GenerateAccessToken(AccessTokenInfo dto)
         {
             var claims = new List<Claim>()
             {

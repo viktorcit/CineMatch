@@ -1,61 +1,24 @@
 ﻿using CineMatch.Api.Data;
-using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Data.DTO.UserDto;
-using CineMatch.Api.Enums;
-using CineMatch.Api.Model;
-using CineMatch.Api.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using CineMatch.Api.Data.DTO.ResponsesDto;
+using CineMatch.Api.Data.DTO.ResponsesDto.User;
+using CineMatch.Api.Helpers;
+using CineMatch.Api.Services.Interfaces.IUserServices;
 
 namespace CineMatch.Api.Services.UserServices
 {
     public class UserService : IUserService
     {
-        private readonly ILogger<UserService> _logger;
         private readonly AppDbContext _db;
 
-        public UserService(ILogger<UserService> logger, AppDbContext db)
+        public UserService(AppDbContext db)
         {
-            _logger = logger;
             _db = db;
         }
 
 
-        public async Task<BaseResponseWithDataDto<UserDto>> CreateUser(string? clientId)
+        public async Task<BaseResponseDto<UserResponseDto>> CreateUser(string? clientId)
         {
-            if (!string.IsNullOrEmpty(clientId))
-            {
-                return new BaseResponseWithDataDto<UserDto>
-                {
-                    IsSuccess = false,
-                    ErrorType = ErrorType.BadRequest,
-                    ResponseMessage = "You already have account",
-                    Data = null
-                };
-            }
-
-            var PublicId = await GenerateId();
-            var Secret = GenerateSecret();
-
-            var user = new ApplicationUser
-            {
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-
-            var response = new UserDto
-            {
-                CreatedAt = user.CreatedAt
-            };
-
-            return new BaseResponseWithDataDto<UserDto>
-            {
-                IsSuccess = true,
-                ErrorType = ErrorType.None,
-                ResponseMessage = "User created successfully",
-                Data = response
-            };
+            return ErrorFactory.Ok<UserResponseDto>(null, "");
         }
 
 
@@ -79,7 +42,8 @@ namespace CineMatch.Api.Services.UserServices
             }
         }
 
-        private string GenerateSecret(int lenght = 10)
+        //private static methods
+        private static string GenerateSecret(int lenght = 10)
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 

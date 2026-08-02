@@ -1,4 +1,4 @@
-﻿using CineMatch.Api.Model;
+﻿using CineMatch.Api.Entity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 

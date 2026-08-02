@@ -1,10 +1,10 @@
 ﻿using CineMatch.Api.Data;
-using CineMatch.Api.Data.DTO;
-using CineMatch.Api.Data.DTO.MoviesDto;
+using CineMatch.Api.Data.Contracts;
+using CineMatch.Api.Data.DTO.ResponsesDto;
+using CineMatch.Api.Entity;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
-using CineMatch.Api.Model;
-using CineMatch.Api.Services.Interfaces;
+using CineMatch.Api.Services.Interfaces.IMovieServices;
 using Microsoft.EntityFrameworkCore;
 
 namespace CineMatch.Api.Services.MovieServices
@@ -20,7 +20,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
 
-        public async Task<BaseResponseDto> SaveMovieAsync(MovieDto dto, string clientId)
+        public async Task<BaseResponseDto> SaveMovieAsync(MovieInfo dto, string clientId)
         {
             _logger.LogInformation("Сохранение фильма");
             if (dto == null)
@@ -98,10 +98,10 @@ namespace CineMatch.Api.Services.MovieServices
             return ErrorFactory.Ok("Movie saved successfully.");
         }
 
-        public async Task<List<MovieDto>> GetAllMoviesAsync()
+        public async Task<List<MovieInfo>> GetAllMoviesAsync()
         {
             var movies = await _db.Movies
-                .Select(m => new MovieDto
+                .Select(m => new MovieInfo
                 {
                     Id = m.Id,
                     TMdbId = m.TMdbId,
@@ -117,16 +117,16 @@ namespace CineMatch.Api.Services.MovieServices
             return movies;
         }
 
-        public async Task<BaseResponseDto<MovieDto>> GetMovieByIdAsync(int id)
+        public async Task<BaseResponseDto<MovieInfo>> GetMovieByIdAsync(int id)
         {
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == id);
             if (movie == null)
             {
                 _logger.LogInformation("Фильм с ID {Id} не найден", id);
-                return ErrorFactory.Fail<MovieDto>(ErrorType.NotFound, "Movie not found.");
+                return ErrorFactory.Fail<MovieInfo>(ErrorType.NotFound, "Movie not found.");
             }
 
-            var response = new MovieDto
+            var response = new MovieInfo
             {
                 Id = movie.Id,
                 TMdbId = movie.TMdbId,
@@ -168,7 +168,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private methods
-        private async Task<bool> AddFilmInDbAndSession(MovieDto dto, Session session)
+        private async Task<bool> AddFilmInDbAndSession(MovieInfo dto, Session session)
         {
             var movie = CreateMovieEntity(dto);
             var sessionMovieTwo = CreateSessionMovieEntity(session, movie);
@@ -180,7 +180,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //static private methods
-        private static Movie CreateMovieEntity(MovieDto dto)
+        private static Movie CreateMovieEntity(MovieInfo dto)
         {
             var movie = new Movie
             {

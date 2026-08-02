@@ -1,10 +1,14 @@
 using CineMatch.Api.Configuration;
 using CineMatch.Api.Data;
+using CineMatch.Api.Entity;
 using CineMatch.Api.Helpers;
-using CineMatch.Api.Model;
-using CineMatch.Api.Services.Interfaces;
+using CineMatch.Api.Services.Interfaces.IJwtServices;
+using CineMatch.Api.Services.Interfaces.IMovieServices;
+using CineMatch.Api.Services.Interfaces.ISessionServices;
+using CineMatch.Api.Services.Interfaces.IUserServices;
 using CineMatch.Api.Services.JwtServices;
 using CineMatch.Api.Services.MovieServices;
+using CineMatch.Api.Services.SessionServices;
 using CineMatch.Api.Services.UserServices;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -28,15 +32,16 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IMovieSearchService, MovieSearchService>();
 builder.Services.AddScoped<IMovieService, MovieService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
-//builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IVoteService, VoteService>();
+builder.Services.AddScoped<ISessionMovieService, SessionMovieService>();
 
 builder.Services.AddSingleton<JwtSecurityTokenHandler>();
-builder.Services.AddSingleton<ErrorFactory>();
 
 
 builder.Services.AddCors(options =>
@@ -72,6 +77,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("Frontend");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

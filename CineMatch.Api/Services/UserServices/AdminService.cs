@@ -1,4 +1,4 @@
-﻿using CineMatch.Api.Services.Interfaces;
+﻿using CineMatch.Api.Services.Interfaces.IUserServices;
 
 namespace CineMatch.Api.Services.UserServices
 {
