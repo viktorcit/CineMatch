@@ -4,7 +4,7 @@ namespace CineMatch.Api.Data.Contracts
 {
     public class SearchResult
     {
-        public int MovieId { get; set; }
+        public int TmdbId { get; set; }
         public ContentType Type { get; set; }
     }
 }

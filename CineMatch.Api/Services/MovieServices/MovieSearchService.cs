@@ -132,7 +132,7 @@ namespace CineMatch.Api.Services.MovieServices
             }
 
             var resultsList = GetMoviesList(resultsArray, inputType);
-            if(resultsList == null)
+            if (resultsList == null)
             {
                 return null;
             }
@@ -146,7 +146,7 @@ namespace CineMatch.Api.Services.MovieServices
             var url = $"https://api.themoviedb.org/3/{type}/{movieId}?language=ru-RU";
 
             var response = await SendRequest(url);
-            if(response == null)
+            if (response == null)
             {
                 return null;
             }
@@ -197,7 +197,7 @@ namespace CineMatch.Api.Services.MovieServices
 
             foreach (var result in searchResult)
             {
-                var details = await GetMovieDetails(result.MovieId, result.Type);
+                var details = await GetMovieDetails(result.TmdbId, result.Type);
                 if (details != null)
                 {
                     movies.Add(details);
@@ -231,36 +231,46 @@ namespace CineMatch.Api.Services.MovieServices
                 ? doc.RootElement.GetProperty("title").GetString()
                 : doc.RootElement.GetProperty("name").GetString();
 
-            if (string.IsNullOrEmpty(title))
+            if (string.IsNullOrWhiteSpace(title))
             {
                 title = "Unknown";
             }
 
-            var dateString = type == ContentType.movie
-                ? doc.RootElement.GetProperty("release_date").GetString()
-                : doc.RootElement.GetProperty("first_air_date").GetString();
+            string datePropertyName = type == ContentType.movie ? "release_date" : "first_air_date";
+            string? dateString = doc.RootElement.TryGetProperty(datePropertyName, out var dateProp)
+                    ? dateProp.GetString()
+                    : null;
+            if (string.IsNullOrWhiteSpace(dateString))
+            {
+                dateString = "Unknown";
+            }
 
-            
             int? year = DateTime.TryParse(dateString, out var parsedData)
                 ? parsedData.Year
                 : null;
 
-            var overview = doc.RootElement.GetProperty("overview").GetString();
-            if (string.IsNullOrEmpty(overview))
+            string? overview = doc.RootElement.TryGetProperty("overview", out var overviewProp)
+                ? overviewProp.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(overview))
             {
                 overview = "Unknown";
             }
 
-            var posterPath = doc.RootElement.GetProperty("poster_path").GetString();
+            var posterPath = doc.RootElement.TryGetProperty("poster_path", out var posterProp)
+                ? posterProp.GetString()
+                : null;
             var posterUrl = string.IsNullOrEmpty(posterPath)
                 ? string.Empty
                 : $"https://image.tmdb.org/t/p/w500{posterPath}";
 
-            var genres = doc.RootElement.GetProperty("genres")
-                .EnumerateArray()
-                .Select(g => g.GetProperty("name").GetString())
-                .Where(g => !string.IsNullOrWhiteSpace(g))
-                .ToList();
+            var genres = doc.RootElement.TryGetProperty("genres", out var genresProp)
+                ? genresProp.EnumerateArray()
+                .Select(g => g.TryGetProperty("name", out var nameProp)
+                ? nameProp.GetString()
+                : null)
+                .Where(g => !string.IsNullOrWhiteSpace(g)).ToList()
+                : [];
 
             var movie = new Movie
             {
@@ -282,19 +292,19 @@ namespace CineMatch.Api.Services.MovieServices
                 .EnumerateArray()
                 .Select(r => new SearchResult
                 {
-                    MovieId = r.GetProperty("id").GetInt32(),
+                    TmdbId = r.GetProperty("id").GetInt32(),
                     Type = r.TryGetProperty("media_type", out var typeProp)
                     ? typeProp.GetString() == "tv" ? ContentType.tv : ContentType.movie
                     : inputType
                 })
-                .Take(5)
+                .Take(10)
                 .ToList();
             if (resultsList.Count == 0)
             {
                 return null;
             }
             return resultsList;
-        }  
+        }
 
         private static int ExtractIdFromLink(string inputUrl)
         {
