@@ -1,6 +1,8 @@
 ﻿using CineMatch.Api.Data.Contracts;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Extensions;
 using CineMatch.Api.Services.Interfaces.ISessionServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineMatch.Api.Controllers.SessionControllers
@@ -19,12 +21,14 @@ namespace CineMatch.Api.Controllers.SessionControllers
         }
 
 
-
-        [HttpGet("movies/{clientId}")]
-        public async Task<ActionResult<List<MovieInfo>>> GetFilmsOfSessionAsync(string clientId)
+        [Authorize]    
+        [HttpGet("movies/{sessionCode}")]
+        public async Task<ActionResult<List<MovieInfo>>> GetFilmsOfSessionAsync(string sessionCode)
         {
+            var userId = User.GetUserId();
+
             _logger.LogInformation("получение фильмов сессии");
-            var result = await _sessionMovieService.GetFilmsOfSessionAsync(clientId);
+            var result = await _sessionMovieService.GetFilmsOfSessionAsync(sessionCode, userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -33,11 +37,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
-        [HttpGet("matched/{clientId}")]
-        public async Task<ActionResult<List<MovieInfo>>> GetMatchedFilmsOfSessionAsync(string clientId)
+        [HttpGet("matched/{sessionCode}")]
+        public async Task<ActionResult<List<MovieInfo>>> GetMatchedFilmsOfSessionAsync(string sessionCode)
         {
+            var userId = User.GetUserId();
+
             _logger.LogInformation("получение совпадающих фильмов сессии");
-            var result = await _sessionMovieService.GetMatchedInSessionMovieAsync(clientId);
+            var result = await _sessionMovieService.GetMatchedInSessionMovieAsync(sessionCode, userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -46,11 +52,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
-        [HttpGet("random-film/{clientId}")]
-        public async Task<ActionResult<MovieInfo>> GetRandomMatchedFilmAsync(string clientId)
+        [HttpGet("random-film/{sessionCode}")]
+        public async Task<ActionResult<MovieInfo>> GetRandomMatchedFilmAsync(string sessionCode)
         {
+            var userId = User.GetUserId();
+
             _logger.LogInformation("получение случайного фильма сессии");
-            var result = await _sessionMovieService.GetRandomMatchedFilmAsync(clientId);
+            var result = await _sessionMovieService.GetRandomMatchedFilmAsync(sessionCode, userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),

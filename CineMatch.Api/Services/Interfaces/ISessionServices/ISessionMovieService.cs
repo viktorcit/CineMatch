@@ -5,8 +5,8 @@ namespace CineMatch.Api.Services.Interfaces.ISessionServices
 {
     public interface ISessionMovieService
     {
-        Task<BaseResponseDto<List<MovieInfo>>> GetFilmsOfSessionAsync(string clientId);
-        Task<BaseResponseDto<List<MovieInfo>>> GetMatchedInSessionMovieAsync(string clientId);
-        Task<BaseResponseDto<MovieInfo>> GetRandomMatchedFilmAsync(string clientId);
+        Task<BaseResponseDto<List<MovieInfo>>> GetFilmsOfSessionAsync(string clientId, string userId);
+        Task<BaseResponseDto<List<MovieInfo>>> GetMatchedInSessionMovieAsync(string clientId, string userId);
+        Task<BaseResponseDto<MovieInfo>> GetRandomMatchedFilmAsync(string clientId, string userId);
     }
 }

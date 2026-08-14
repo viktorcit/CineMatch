@@ -1,6 +1,5 @@
 ﻿using CineMatch.Api.Data.Contracts;
 using CineMatch.Api.Data.DTO.RequestsDto.Auth;
-using CineMatch.Api.Data.DTO.RequestsDto.Tokens;
 using CineMatch.Api.Data.DTO.ResponsesDto;
 using CineMatch.Api.Data.DTO.ResponsesDto.Tokens;
 using CineMatch.Api.Entity;
@@ -104,18 +103,18 @@ namespace CineMatch.Api.Services.UserServices
         }
 
 
-        public async Task<BaseResponseDto<TokensResponseDto>> RefreshUserTokensAsync(RefreshTokenRequestDto dto)
+        public async Task<BaseResponseDto<TokensResponseDto>> RefreshUserTokensAsync(string userId, string oldRefreshToken)
         {
-            var user = await _userManager.FindByIdAsync(dto.UserId);
+            var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {      
-                return ErrorFactory.Fail<TokensResponseDto>(ErrorType.NotFound, $"User with ID '{dto.UserId}' not found.");
+                return ErrorFactory.Fail<TokensResponseDto>(ErrorType.NotFound, $"User with ID '{userId}' not found.");
             }
             var userRoles = await _userManager.GetRolesAsync(user);
             var tokensRefreshDto = new TokensRefreshInfo
             {
-                UserId = dto.UserId,
-                OldRefreshToken = dto.OldRefreshToken,
+                UserId = userId,
+                OldRefreshToken = oldRefreshToken,
                 UserName = user.UserName,
                 UserRoles = userRoles.ToArray()
             };
@@ -133,12 +132,7 @@ namespace CineMatch.Api.Services.UserServices
         //private methods
         private async Task<TokensResponseDto?> RefreshTokens(TokensRefreshInfo dto)
         {
-            var refreshToken = new RefreshTokenRequestDto
-            {
-                UserId = dto.UserId,
-                OldRefreshToken = dto.OldRefreshToken
-            };
-            var newRefreshToken = await _refreshTokenService.RefreshToken(refreshToken);
+            var newRefreshToken = await _refreshTokenService.RefreshToken(dto.OldRefreshToken, dto.UserId);
             if (newRefreshToken == null)
             {
                 return null;

@@ -10,6 +10,7 @@
         Timeout,
         Conflict,
         TooManyRequests,
-        NoContent
+        NoContent,
+        Forbidden
     }
 }

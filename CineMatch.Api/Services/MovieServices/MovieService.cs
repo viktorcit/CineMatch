@@ -20,7 +20,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
 
-        public async Task<BaseResponseDto> SaveMovieAsync(MovieInfo dto, string clientId)
+        public async Task<BaseResponseDto> SaveMovieAsync(MovieInfo dto, string userId)
         {
             _logger.LogInformation("Сохранение фильма");
             if (dto == null)
@@ -43,20 +43,20 @@ namespace CineMatch.Api.Services.MovieServices
                 _logger.LogInformation("Некорректный год выпуска");
                 return ErrorFactory.Fail(ErrorType.BadRequest, "TMDb ID must be a positive integer.");
             }
-            if (string.IsNullOrEmpty(clientId))
+            if (string.IsNullOrEmpty(userId))
             {
-                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be null");
+                return ErrorFactory.Fail(ErrorType.BadRequest, "User ID cannot be null");
             }
 
-            var clientSessionExist = await _db.Sessions
-                .FirstOrDefaultAsync(cs => cs.Participants.Any(p => p.ClientId == clientId));
-            if (clientSessionExist == null)
+            var SessionParticipant = await _db.SessionParticipants
+                .FirstOrDefaultAsync(sp => sp.UserId == userId);
+            if (SessionParticipant == null)
             {
-                _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", clientId);
+                _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", userId);
                 return ErrorFactory.Fail(ErrorType.NotFound, "You are not in any session and cannot save movies or session closed.");
             }
 
-            var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Id == clientSessionExist.Id);
+            var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Id == SessionParticipant.SessionId);
             if (session == null)
             {
                 return ErrorFactory.Fail(ErrorType.NotFound, "Session not found for the client.");
@@ -201,11 +201,9 @@ namespace CineMatch.Api.Services.MovieServices
             {
                 SessionId = session.Id,
                 MovieId = movie.Id,
-                Session = session,
                 Movie = movie
             };
             return sessionMovie;
         }
-
     }
 }

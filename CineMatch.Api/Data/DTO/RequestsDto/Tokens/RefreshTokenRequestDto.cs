@@ -6,7 +6,5 @@ namespace CineMatch.Api.Data.DTO.RequestsDto.Tokens
     {
         [Required]
         public required string OldRefreshToken { get; set; }
-        [Required]
-        public required string UserId { get; set; }
     }
 }

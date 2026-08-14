@@ -4,11 +4,8 @@ namespace CineMatch.Api.Entity
     public class Session
     {
         public int Id { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public string Code { get; set; } = null!;
-        public string CreatorClientId { get; set; } = null!;
-        public List<SessionMovie> SessionMovies { get; set; } = [];
-        public List<Vote> Votes { get; set; } = [];
-        public List<SessionParticipant> Participants { get; set; } = [];
+        public required string Code { get; set; }
+        public required string CreatorUserId { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }   
 }

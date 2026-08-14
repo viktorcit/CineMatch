@@ -5,10 +5,10 @@ namespace CineMatch.Api.Services.Interfaces.ISessionServices
 {
     public interface ISessionService
     {
-        Task<BaseResponseDto<SessionResponseDto>> CreateSessionAsync(string clientId);
-        Task<BaseResponseDto> JoinToSessionAsync(string code, string clientId);
-        Task<BaseResponseDto> LeaveSessionAsync(string clientId);
-        Task<BaseResponseDto> EndSessionAsync(string clientId);
+        Task<BaseResponseDto<SessionResponseDto>> CreateSessionAsync(string userId);
+        Task<BaseResponseDto> JoinToSessionAsync(string code, string userId);
+        Task<BaseResponseDto> LeaveSessionAsync(string userId);
+        Task<BaseResponseDto> EndSessionAsync(string userId);
 
     }
 }

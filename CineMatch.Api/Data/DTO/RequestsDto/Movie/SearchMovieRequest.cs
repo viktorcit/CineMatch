@@ -7,7 +7,7 @@ namespace CineMatch.Api.Data.DTO.RequestsDto.Movie
     {
         [Required]
         public required string MainInput { get; set; }
-        public  ContentType Type { get; set; } = ContentType.Unknown;
+        public ContentType Type { get; set; } = ContentType.Unknown;
         public int? Year { get; set; }
     }
 }

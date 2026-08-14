@@ -1,6 +1,8 @@
 ﻿using CineMatch.Api.Data.DTO.RequestsDto.Session;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Extensions;
 using CineMatch.Api.Services.Interfaces.ISessionServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineMatch.Api.Controllers.SessionControllers
@@ -17,11 +19,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             _voteService = voteService;
         }
 
+        [Authorize]
         [HttpPost("like")]
         public async Task<ActionResult> LikeFilmsAsync(VoteRequestDto dto)
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("лайк фильма");
-            var result = await _voteService.LikeFilmsAsync(dto.ClientId, dto.MovieId);
+            var result = await _voteService.LikeFilmsAsync(userId, dto.MovieId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -30,11 +34,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
+        [Authorize]
         [HttpPost("dislike")]
         public async Task<ActionResult> DislikeFilmsAsync(VoteRequestDto dto)
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("дизлайк фильма");
-            var result = await _voteService.DislikeFilmsAsync(dto.ClientId, dto.MovieId);
+            var result = await _voteService.DislikeFilmsAsync(userId, dto.MovieId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -43,11 +49,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
-        [HttpPost("clear-votes/{clientId}")]
-        public async Task<ActionResult> ClearSessionVotesAsync(string clientId)
+        [Authorize]
+        [HttpPost("clear-votes")]
+        public async Task<ActionResult> ClearSessionVotesAsync()
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("очистить голоса сессии");
-            var result = await _voteService.ClearSessionVotesAsync(clientId);
+            var result = await _voteService.ClearSessionVotesAsync(userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),

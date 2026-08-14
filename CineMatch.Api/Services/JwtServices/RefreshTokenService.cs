@@ -1,5 +1,4 @@
 ﻿using CineMatch.Api.Data;
-using CineMatch.Api.Data.DTO.RequestsDto.Tokens;
 using CineMatch.Api.Entity;
 using CineMatch.Api.Services.Interfaces.IJwtServices;
 using Microsoft.EntityFrameworkCore;
@@ -18,16 +17,16 @@ namespace CineMatch.Api.Services.JwtServices
         }
 
 
-        public async Task<string?> RefreshToken(RefreshTokenRequestDto dto)
+        public async Task<string?> RefreshToken(string oldRefreshToken, string userId)
         {
-            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == dto.OldRefreshToken && t.UserId == dto.UserId);
+            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == oldRefreshToken && t.UserId == userId);
             if (storedToken == null || storedToken.ExpiresAt < DateTime.UtcNow || storedToken.RevokedAt != null)
             {
                 return null;
             }
 
             var newRefreshToken = await GenerateUniqueRefreshToken();
-            var refreshToken = CreateRefreshTokenEntity(dto.UserId, newRefreshToken);
+            var refreshToken = CreateRefreshTokenEntity(userId, newRefreshToken);
             storedToken.RevokedAt = DateTime.UtcNow;
             _db.RefreshTokens.Add(refreshToken);
             _db.RefreshTokens.Update(storedToken);

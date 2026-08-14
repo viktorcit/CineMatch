@@ -22,31 +22,19 @@ namespace CineMatch.Api.Services.SessionServices
 
 
 
-        public async Task<BaseResponseDto<SessionResponseDto>> CreateSessionAsync(string clientId)
+        public async Task<BaseResponseDto<SessionResponseDto>> CreateSessionAsync(string userId)
         {
-            if (string.IsNullOrWhiteSpace(clientId))
-            {
-                return ErrorFactory.Fail<SessionResponseDto>(ErrorType.BadRequest, "Client ID cannot be empty");
-            }
-
             _logger.LogInformation("создание сессии");
-            var existingSession = await _db.Sessions
-                .AnyAsync(s => s.CreatorClientId == clientId);
-            if (existingSession)
-            {
-                return ErrorFactory.Fail<SessionResponseDto>(ErrorType.BadRequest, "You already have an active session.");
-            }
-
             var existingParticipant = await _db.SessionParticipants
-                .AnyAsync(p => p.ClientId == clientId);
+                .AnyAsync(p => p.UserId == userId);
             if (existingParticipant)
             {
                 return ErrorFactory.Fail<SessionResponseDto>(ErrorType.Conflict, "You are already a participant of another session. Leave for creation");
             }
 
-            var session = await CreateSessionEntityAsync(clientId);
+            var session = await CreateSessionEntityAsync(userId);
             int participantNumber = 1;
-            var participant = CreateSessionParticipantEntity(clientId, session, participantNumber);
+            var participant = CreateSessionParticipantEntity(userId, session, participantNumber);
 
             _db.SessionParticipants.Add(participant);
             _db.Sessions.Add(session);
@@ -58,23 +46,18 @@ namespace CineMatch.Api.Services.SessionServices
         }
 
 
-        public async Task<BaseResponseDto> JoinToSessionAsync(string code, string clientId)
+        public async Task<BaseResponseDto> JoinToSessionAsync(string code, string userId)
         {
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                return ErrorFactory.Fail(ErrorType.BadRequest, "Session code cannot be empty");
-            }
-
             var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Code == code);
             if (session == null)
             {
                 return ErrorFactory.Fail(ErrorType.NotFound, "Session not found");
             }
 
-            var existingParticipant = await _db.SessionParticipants.AnyAsync(p => p.ClientId == clientId);
+            var existingParticipant = await _db.SessionParticipants.AnyAsync(p => p.UserId == userId);
             if (existingParticipant)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You are already a participant of another session");
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are already a participant of another session.");
             }
 
             var sessionParticipants = await _db.SessionParticipants
@@ -85,7 +68,7 @@ namespace CineMatch.Api.Services.SessionServices
             }
 
             var participantNumber = sessionParticipants.Count + 1;
-            var newParticipant = CreateSessionParticipantEntity(clientId, session, participantNumber);
+            var newParticipant = CreateSessionParticipantEntity(userId, session, participantNumber);
 
             _db.SessionParticipants.Add(newParticipant);
             await _db.SaveChangesAsync();
@@ -94,21 +77,16 @@ namespace CineMatch.Api.Services.SessionServices
         }
 
 
-        public async Task<BaseResponseDto> LeaveSessionAsync(string clientId)
+        public async Task<BaseResponseDto> LeaveSessionAsync(string userId)
         {
-            if (string.IsNullOrWhiteSpace(clientId))
-            {
-                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be empty");
-            }
-
             var sessionParticipant = await _db.SessionParticipants
-                .FirstOrDefaultAsync(p => p.ClientId == clientId);
+                .FirstOrDefaultAsync(p => p.UserId == userId);
             if (sessionParticipant == null)
             {
                 return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant in any session");
             }
             var sessionCreatorExist = await _db.Sessions
-                .AnyAsync(s => s.Id == sessionParticipant.SessionId && s.CreatorClientId == clientId);
+                .AnyAsync(s => s.Id == sessionParticipant.SessionId && s.CreatorUserId == userId);
             if (sessionCreatorExist)
             {
                 return ErrorFactory.Fail(ErrorType.Conflict, "You are a creator of this session. End session for leaving");
@@ -120,18 +98,15 @@ namespace CineMatch.Api.Services.SessionServices
             return ErrorFactory.Ok("Left session successfully");
         }
 
-        public async Task<BaseResponseDto> EndSessionAsync(string clientId)
+        public async Task<BaseResponseDto> EndSessionAsync(string userId)
         {
-            if (string.IsNullOrWhiteSpace(clientId))
-            {
-                return ErrorFactory.Fail(ErrorType.BadRequest, "Client ID cannot be empty");
-            }
             var sessionCreator = await _db.Sessions
-                .FirstOrDefaultAsync(p => p.CreatorClientId == clientId);
+                .FirstOrDefaultAsync(p => p.CreatorUserId == userId);
             if (sessionCreator == null)
             {
                 return ErrorFactory.Fail(ErrorType.Conflict, "You don't have an active session that you created to end it.");
             }
+
             _db.Sessions.Remove(sessionCreator);
             await _db.SaveChangesAsync();
             return ErrorFactory.Ok("Session ended successfully");
@@ -164,7 +139,7 @@ namespace CineMatch.Api.Services.SessionServices
             {
                 Code = await GenerateCodeAsync(),
                 CreatedAt = DateTime.UtcNow,
-                CreatorClientId = clientId,
+                CreatorUserId = clientId,
             };
             return session;
         }
@@ -174,8 +149,7 @@ namespace CineMatch.Api.Services.SessionServices
         {
             var participant = new SessionParticipant
             {
-                ClientId = clientId,
-                Session = session,
+                UserId = clientId,
                 SessionId = session.Id,
                 ParticipantNumber = participantNumber,
             };
@@ -187,7 +161,7 @@ namespace CineMatch.Api.Services.SessionServices
             var response = new SessionResponseDto
             {
                 Code = session.Code,
-                CreatorClientId = session.CreatorClientId
+                CreatorUserId = session.CreatorUserId
             };
             return response;
         }

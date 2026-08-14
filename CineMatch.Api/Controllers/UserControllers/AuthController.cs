@@ -2,7 +2,9 @@
 using CineMatch.Api.Data.DTO.RequestsDto.Tokens;
 using CineMatch.Api.Data.DTO.ResponsesDto.Tokens;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Extensions;
 using CineMatch.Api.Services.Interfaces.IUserServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineMatch.Api.Controllers.UserControllers
@@ -44,10 +46,12 @@ namespace CineMatch.Api.Controllers.UserControllers
             };
         }
 
+        [Authorize]
         [HttpPost("refresh")]
         public async Task<ActionResult<TokensResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto dto)
         {
-            var result = await _authService.RefreshUserTokensAsync(dto);
+            var userId = User.GetUserId();
+            var result = await _authService.RefreshUserTokensAsync(dto.OldRefreshToken, userId);
             return result.ErrorType switch
             {
                 ErrorType.Unauthorized => Unauthorized(result.ResponseMessage),

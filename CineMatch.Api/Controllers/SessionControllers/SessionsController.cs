@@ -1,7 +1,9 @@
 ﻿using CineMatch.Api.Data.DTO.RequestsDto.Session;
 using CineMatch.Api.Data.DTO.ResponsesDto.Session;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Extensions;
 using CineMatch.Api.Services.Interfaces.ISessionServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineMatch.Api.Controllers.SessionControllers
@@ -21,11 +23,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
 
 
         // POST
+        [Authorize]
         [HttpPost("create")]
-        public async Task<ActionResult<SessionResponseDto>> CreateSessionAsync(CreateSessionRequestDto dto)
+        public async Task<ActionResult<SessionResponseDto>> CreateSessionAsync()
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("создание сессии");
-            var result = await _sessionService.CreateSessionAsync(dto.ClientId);
+            var result = await _sessionService.CreateSessionAsync(userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -33,11 +37,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
+        [Authorize]
         [HttpPost("join")]
         public async Task<ActionResult> JoinToSessionAsync(JoinSessionRequestDto dto)
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("присоединение к сессии");
-            var result = await _sessionService.JoinToSessionAsync(dto.Code, dto.ClientId);
+            var result = await _sessionService.JoinToSessionAsync(dto.Code, userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -45,11 +51,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
-        [HttpPost("leave/{clientId}")]
-        public async Task<ActionResult> LeaveSessionAsync(string clientId)
+        [Authorize]
+        [HttpPost("leave")]
+        public async Task<ActionResult> LeaveSessionAsync()
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("покинуть сессию");
-            var result = await _sessionService.LeaveSessionAsync(clientId);
+            var result = await _sessionService.LeaveSessionAsync(userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -58,11 +66,13 @@ namespace CineMatch.Api.Controllers.SessionControllers
             };
         }
 
-        [HttpPost("end/{clientId}")]
-        public async Task<ActionResult> EndSessionAsync(string clientId)
+        [Authorize]
+        [HttpPost("end")]
+        public async Task<ActionResult> EndSessionAsync()
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("завершить сессию");
-            var result = await _sessionService.EndSessionAsync(clientId);
+            var result = await _sessionService.EndSessionAsync(userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
