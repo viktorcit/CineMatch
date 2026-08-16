@@ -17,16 +17,16 @@ namespace CineMatch.Api.Services.JwtServices
         }
 
 
-        public async Task<string?> RefreshToken(string oldRefreshToken, string userId)
+        public async Task<string?> RefreshToken(string oldRefreshToken)
         {
-            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == oldRefreshToken && t.UserId == userId);
+            var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == oldRefreshToken);
             if (storedToken == null || storedToken.ExpiresAt < DateTime.UtcNow || storedToken.RevokedAt != null)
             {
                 return null;
             }
 
             var newRefreshToken = await GenerateUniqueRefreshToken();
-            var refreshToken = CreateRefreshTokenEntity(userId, newRefreshToken);
+            var refreshToken = CreateRefreshTokenEntity(storedToken.UserId, newRefreshToken);
             storedToken.RevokedAt = DateTime.UtcNow;
             _db.RefreshTokens.Add(refreshToken);
             _db.RefreshTokens.Update(storedToken);

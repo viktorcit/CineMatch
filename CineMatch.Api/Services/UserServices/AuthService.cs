@@ -132,7 +132,7 @@ namespace CineMatch.Api.Services.UserServices
         //private methods
         private async Task<TokensResponseDto?> RefreshTokens(TokensRefreshInfo dto)
         {
-            var newRefreshToken = await _refreshTokenService.RefreshToken(dto.OldRefreshToken, dto.UserId);
+            var newRefreshToken = await _refreshTokenService.RefreshToken(dto.OldRefreshToken);
             if (newRefreshToken == null)
             {
                 return null;
