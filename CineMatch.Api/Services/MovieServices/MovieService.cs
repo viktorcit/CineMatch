@@ -13,40 +13,24 @@ namespace CineMatch.Api.Services.MovieServices
     {
         private readonly ILogger<MovieService> _logger;
         private readonly AppDbContext _db;
-        public MovieService(ILogger<MovieService> logger, AppDbContext db)
+        private readonly IMovieSearchService _movieSearchService;
+        private readonly ITmdbService _tmdbService;
+        public MovieService(
+            ILogger<MovieService> logger,
+            AppDbContext db,
+            IMovieSearchService movieSearchService,
+            ITmdbService tmdbService)
         {
             _logger = logger;
             _db = db;
+            _movieSearchService = movieSearchService;
+            _tmdbService = tmdbService;
         }
 
 
-        public async Task<BaseResponseDto> SaveMovieAsync(MovieInfo dto, string userId)
+        public async Task<BaseResponseDto> SaveMovieAsync(int tmdbId, ContentType type, string userId)
         {
             _logger.LogInformation("Сохранение фильма");
-            if (dto == null)
-            {
-                _logger.LogInformation("Нет данных для сохранения");
-                return ErrorFactory.Fail(ErrorType.BadRequest ,"Movie data cannot be null.");
-            }
-            if (string.IsNullOrEmpty(dto.Title))
-            {
-                _logger.LogInformation("Название фильма не указано");
-                return ErrorFactory.Fail(ErrorType.BadRequest, "Movie title is required.");
-            }
-            if (dto.TMdbId <= 0)
-            {
-                _logger.LogInformation("Некорректный TMDb ID");
-                return ErrorFactory.Fail(ErrorType.BadRequest, "TMDb ID must be a positive integer.");
-            }
-            if (dto.Year.HasValue && (dto.Year < 1888 || dto.Year > DateTime.Now.Year + 1))
-            {
-                _logger.LogInformation("Некорректный год выпуска");
-                return ErrorFactory.Fail(ErrorType.BadRequest, "TMDb ID must be a positive integer.");
-            }
-            if (string.IsNullOrEmpty(userId))
-            {
-                return ErrorFactory.Fail(ErrorType.BadRequest, "User ID cannot be null");
-            }
 
             var SessionParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(sp => sp.UserId == userId);
@@ -62,7 +46,7 @@ namespace CineMatch.Api.Services.MovieServices
                 return ErrorFactory.Fail(ErrorType.NotFound, "Session not found for the client.");
             }
 
-            var movieExists = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == dto.TMdbId && m.Type == dto.Type);
+            var movieExists = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == tmdbId && m.Type == type);
             if (movieExists != null)
             {
                 var movieExistSession = await _db.SessionMovies.FirstOrDefaultAsync(sm => sm.MovieId == movieExists.Id && sm.SessionId == session.Id);
@@ -87,7 +71,12 @@ namespace CineMatch.Api.Services.MovieServices
 
             try
             {
-                var addFilm = await AddFilmInDbAndSession(dto, session);
+                var movie = await GetMovieDataByIdAsync(tmdbId, type);
+                if (movie == null)
+                {
+                    return ErrorFactory.Fail(ErrorType.NotFound, "Movie not found with same TMDb Id");
+                }
+                await AddFilmInDbAndSession(movie, session);
             }
             catch (Exception ex)
             {
@@ -168,15 +157,38 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private methods
-        private async Task<bool> AddFilmInDbAndSession(MovieInfo dto, Session session)
+        private async Task AddFilmInDbAndSession(Movie movie, Session session)
         {
-            var movie = CreateMovieEntity(dto);
-            var sessionMovieTwo = CreateSessionMovieEntity(session, movie);
-
+            var sessionMovie = CreateSessionMovieEntity(session, movie);
             await _db.Movies.AddAsync(movie);
-            await _db.SessionMovies.AddAsync(sessionMovieTwo);
+            await _db.SessionMovies.AddAsync(sessionMovie);
             await _db.SaveChangesAsync();
-            return true;
+        }
+
+        private async Task<Movie?> GetMovieDataByIdAsync(int tmdbId, ContentType type)
+        {
+            var movie = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == tmdbId && m.Type == type);
+            if (movie == null)
+            {
+                movie = await FetchMovieDataFromApiAsync(tmdbId, type);
+                if (movie == null)
+                {
+                    return null;
+                }
+            }
+            var response = CreateMovieDto(movie);
+            return movie;
+        }
+
+        private async Task<Movie?> FetchMovieDataFromApiAsync(int tmdbId, ContentType type)
+        {
+            var movieData = await _tmdbService.GetMovieDetailsAsync(tmdbId, type);
+            if (movieData == null)
+            {
+                return null;
+            }
+            var movie = CreateMovieEntity(movieData);
+            return movie;
         }
 
         //static private methods
@@ -193,6 +205,22 @@ namespace CineMatch.Api.Services.MovieServices
                 Genres = dto.Genres
             };
             return movie;
+        }
+
+        private static MovieInfo CreateMovieDto(Movie movie)
+        {
+            var dto = new MovieInfo
+            {
+                Id = movie.Id,
+                TMdbId = movie.TMdbId,
+                Type = movie.Type,
+                Title = movie.Title,
+                Year = movie.Year,
+                Overview = movie.Overview,
+                PosterUrl = movie.PosterUrl,
+                Genres = movie.Genres
+            };
+            return dto;
         }
 
         private static SessionMovie CreateSessionMovieEntity(Session session, Movie movie)

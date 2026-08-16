@@ -40,6 +40,7 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IVoteService, VoteService>();
 builder.Services.AddScoped<ISessionMovieService, SessionMovieService>();
+builder.Services.AddScoped<ITmdbService, TmdbService>();
 
 builder.Services.AddSingleton<JwtSecurityTokenHandler>();
 

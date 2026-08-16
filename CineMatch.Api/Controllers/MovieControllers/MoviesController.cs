@@ -1,7 +1,9 @@
 ﻿using CineMatch.Api.Data.Contracts;
 using CineMatch.Api.Data.DTO.RequestsDto.Movie;
 using CineMatch.Api.Enums;
+using CineMatch.Api.Extensions;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CineMatch.Api.Controllers.MovieControllers
@@ -31,7 +33,7 @@ namespace CineMatch.Api.Controllers.MovieControllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<MovieInfo>> GetMovieByIdAsync([FromRoute] int id, [FromQuery] ContentType type)
+        public async Task<ActionResult<MovieInfo>> GetMovieByIdAsync([FromRoute] int id)
         {
             _logger.LogInformation("попытка получить фильм по id");
             if (id <= 0)
@@ -47,7 +49,7 @@ namespace CineMatch.Api.Controllers.MovieControllers
             };
         }
 
-        [HttpPost]
+        [HttpPost("search-by-url")]
         public async Task<ActionResult<MovieInfo>> GetMovieByUrlAsync([FromBody] SearchMovieRequest dto)
         {
             _logger.LogInformation("попытка найти фильм по ссылке");
@@ -78,11 +80,13 @@ namespace CineMatch.Api.Controllers.MovieControllers
             };
         }
 
-        [HttpPost("save/{clientId}")]
-        public async Task<ActionResult> SaveMovieAsync(string clientId, [FromBody] MovieInfo movieDto)
+        [Authorize]
+        [HttpPost("save")]
+        public async Task<ActionResult> SaveMovieAsync([FromBody] SaveMovieRequestDto dto)
         {
+            var userId = User.GetUserId();
             _logger.LogInformation("попытка добавить фильм в базу данных");
-            var result = await _movieService.SaveMovieAsync(movieDto, clientId);
+            var result = await _movieService.SaveMovieAsync(dto.TmdbId, dto.Type, userId);
 
             return result.ErrorType switch
             {
