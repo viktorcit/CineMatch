@@ -70,7 +70,15 @@ var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
 using var scope = app.Services.CreateScope();
 var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
-await seeder.SeedAsync();
+try
+{
+    await seeder.SeedAsync();
+}
+catch (Exception ex)
+{
+    logger.LogError("Runtime error during seed execution {ex}", ex);
+    throw;
+}
 
 if (app.Environment.IsDevelopment())
 {
