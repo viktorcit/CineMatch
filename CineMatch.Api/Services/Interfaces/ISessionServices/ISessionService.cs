@@ -9,6 +9,5 @@ namespace CineMatch.Api.Services.Interfaces.ISessionServices
         Task<BaseResponseDto> JoinToSessionAsync(string code, string userId);
         Task<BaseResponseDto> LeaveSessionAsync(string userId);
         Task<BaseResponseDto> EndSessionAsync(string userId);
-
     }
 }

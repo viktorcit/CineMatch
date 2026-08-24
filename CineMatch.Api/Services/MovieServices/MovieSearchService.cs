@@ -11,19 +11,12 @@ namespace CineMatch.Api.Services.MovieServices
 {
     public class MovieSearchService : IMovieSearchService
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _tmdbApiToken;
         private readonly ILogger<MovieSearchService> _logger;
         private readonly ITmdbService _tmdbService;
         public MovieSearchService
-            (HttpClient httpClient,
-            IConfiguration config,
-            ILogger<MovieSearchService> logger,
+            (ILogger<MovieSearchService> logger,
             ITmdbService tmdbService)
         {
-            _httpClient = httpClient;
-            _tmdbApiToken = config["Tmdb:ApiToken"]
-                ?? throw new InvalidOperationException("TMDb token not configured");
             _logger = logger;
             _tmdbService = tmdbService;
         }

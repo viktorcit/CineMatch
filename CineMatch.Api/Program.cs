@@ -1,7 +1,6 @@
 using CineMatch.Api.Configuration;
 using CineMatch.Api.Data;
 using CineMatch.Api.Entity;
-using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IJwtServices;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
 using CineMatch.Api.Services.Interfaces.ISessionServices;
@@ -29,6 +28,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
+builder.Services.AddScoped<DbSeeder>();
 builder.Services.AddScoped<IMovieSearchService, MovieSearchService>();
 builder.Services.AddScoped<IMovieService, MovieService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
@@ -67,6 +67,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+using var scope = app.Services.CreateScope();
+var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+await seeder.SeedAsync();
 
 if (app.Environment.IsDevelopment())
 {

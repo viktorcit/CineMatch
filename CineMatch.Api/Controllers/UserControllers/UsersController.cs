@@ -16,22 +16,5 @@ namespace CineMatch.Api.Controllers.UserControllers
         {
             _userService = userService;
         }
-
-
-        [HttpPost("guest")]
-        public async Task<ActionResult<UserResponseDto>> CreateUser(string? clientId)
-        {
-            if (!string.IsNullOrEmpty(clientId))
-            {
-                return BadRequest("You already have account");
-            }
-            var result = await _userService.CreateUser(clientId);
-
-            return result.ErrorType switch
-            {
-                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
-                _ => Ok(result.Data)
-            };
-        }
     }
 }

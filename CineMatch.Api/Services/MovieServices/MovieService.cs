@@ -5,6 +5,7 @@ using CineMatch.Api.Entity;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CineMatch.Api.Services.MovieServices
@@ -131,6 +132,7 @@ namespace CineMatch.Api.Services.MovieServices
             return ErrorFactory.Ok(response, "Movie retrieved successfully.");
         }
 
+        [Authorize] //TODO admin only can delete movie from DB
         public async Task<BaseResponseDto> DeleteMovieAsync(int id)
         {
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == id);

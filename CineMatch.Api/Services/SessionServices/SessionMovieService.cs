@@ -5,21 +5,20 @@ using CineMatch.Api.Entity;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.ISessionServices;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
 
 namespace CineMatch.Api.Services.SessionServices
 {
     public class SessionMovieService : ISessionMovieService
     {
         private readonly AppDbContext _db;
+        private readonly ILogger<SessionMovieService> _logger;
 
-        public SessionMovieService(AppDbContext db)
+        public SessionMovieService(AppDbContext db, ILogger<SessionMovieService> logger)
         {
             _db = db;
+            _logger = logger;
         }
-
 
 
         public async Task<BaseResponseDto<List<MovieInfo>>> GetFilmsOfSessionAsync(string sessionCode, string userId)
@@ -85,6 +84,32 @@ namespace CineMatch.Api.Services.SessionServices
             var response = CreateMovieDto(randomMovie);
 
             return ErrorFactory.Ok(response, "Random matched movie retrieved successfully");
+        }
+
+        public async Task<BaseResponseDto> DeleteMovieFromSessionAsync(int movieId, string userId)
+        {
+            var sessionParticipant = await _db.SessionParticipants.FirstOrDefaultAsync(sp => sp.UserId == userId);
+            if (sessionParticipant == null)
+            {
+                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant in any session.");
+            }
+            var sessionMovie = await _db.SessionMovies.FirstOrDefaultAsync(m => m.Id == movieId && m.SessionId == sessionParticipant.SessionId);
+            if (sessionMovie == null)
+            {
+                return ErrorFactory.Fail(ErrorType.NotFound, "Movie not found from this session.");
+            }
+
+            try
+            {
+                _db.SessionMovies.Remove(sessionMovie);
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while deleting the movie from the session.");
+                return ErrorFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
+            }
+            return ErrorFactory.Ok("Movie retrieved successfully.");
         }
 
         //private methods

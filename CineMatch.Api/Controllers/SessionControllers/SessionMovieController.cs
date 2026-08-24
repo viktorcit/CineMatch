@@ -66,5 +66,18 @@ namespace CineMatch.Api.Controllers.SessionControllers
                 _ => Ok(result.Data)
             };
         }
+
+        [HttpDelete("{id}")]
+        public async Task<ActionResult> DeleteMovieFromSessionAsync(int id)
+        {
+            var userId = User.GetUserId();
+            var result = await _sessionMovieService.DeleteMovieFromSessionAsync(id, userId);
+            return result.ErrorType switch
+            {
+                ErrorType.BadRequest => BadRequest(result.ResponseMessage),
+                ErrorType.NotFound => NotFound(result.ResponseMessage),
+                _ => Ok(result.ResponseMessage)
+            };
+        }
     }
 }
