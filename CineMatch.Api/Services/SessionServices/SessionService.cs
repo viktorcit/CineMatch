@@ -29,7 +29,7 @@ namespace CineMatch.Api.Services.SessionServices
                 .AnyAsync(p => p.UserId == userId);
             if (existingParticipant)
             {
-                return ErrorFactory.Fail<SessionResponseDto>(ErrorType.Conflict, "You are already a participant of another session. Leave for creation");
+                return ResponseFactory.Fail<SessionResponseDto>(ErrorType.Conflict, "You are already a participant of another session. Leave for creation");
             }
 
             var session = await CreateSessionEntityAsync(userId);
@@ -42,7 +42,7 @@ namespace CineMatch.Api.Services.SessionServices
 
             var response = CreateSessionResponseDto(session);
 
-            return ErrorFactory.Ok(response, "Session created successfully");
+            return ResponseFactory.Ok(response);
         }
 
 
@@ -51,20 +51,20 @@ namespace CineMatch.Api.Services.SessionServices
             var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Code == code);
             if (session == null)
             {
-                return ErrorFactory.Fail(ErrorType.NotFound, "Session not found");
+                return ResponseFactory.Fail(ErrorType.NotFound, "Session not found");
             }
 
             var existingParticipant = await _db.SessionParticipants.AnyAsync(p => p.UserId == userId);
             if (existingParticipant)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You are already a participant of another session.");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You are already a participant of another session.");
             }
 
             var sessionParticipants = await _db.SessionParticipants
                 .Where(p => p.SessionId == session.Id).ToListAsync();
             if (sessionParticipants.Count >= 2)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "Session is full");
+                return ResponseFactory.Fail(ErrorType.Conflict, "Session is full");
             }
 
             var participantNumber = sessionParticipants.Count + 1;
@@ -73,7 +73,7 @@ namespace CineMatch.Api.Services.SessionServices
             _db.SessionParticipants.Add(newParticipant);
             await _db.SaveChangesAsync();
 
-            return ErrorFactory.Ok("Joined session successfully");
+            return ResponseFactory.Ok("Joined session successfully");
         }
 
 
@@ -83,19 +83,19 @@ namespace CineMatch.Api.Services.SessionServices
                 .FirstOrDefaultAsync(p => p.UserId == userId);
             if (sessionParticipant == null)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant in any session");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You are not a participant in any session");
             }
             var sessionCreatorExist = await _db.Sessions
                 .AnyAsync(s => s.Id == sessionParticipant.SessionId && s.CreatorUserId == userId);
             if (sessionCreatorExist)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You are a creator of this session. End session for leaving");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You are a creator of this session. End session for leaving");
             }
 
             _db.SessionParticipants.Remove(sessionParticipant);
             await _db.SaveChangesAsync();
 
-            return ErrorFactory.Ok("Left session successfully");
+            return ResponseFactory.Ok("Left session successfully");
         }
 
         public async Task<BaseResponseDto> EndSessionAsync(string userId)
@@ -104,12 +104,12 @@ namespace CineMatch.Api.Services.SessionServices
                 .FirstOrDefaultAsync(p => p.CreatorUserId == userId);
             if (sessionCreator == null)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You don't have an active session that you created to end it.");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You don't have an active session that you created to end it.");
             }
 
             _db.Sessions.Remove(sessionCreator);
             await _db.SaveChangesAsync();
-            return ErrorFactory.Ok("Session ended successfully");
+            return ResponseFactory.Ok("Session ended successfully");
         }
 
 

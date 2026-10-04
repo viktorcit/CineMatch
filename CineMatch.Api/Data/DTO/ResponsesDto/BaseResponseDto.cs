@@ -6,7 +6,7 @@ namespace CineMatch.Api.Data.DTO.ResponsesDto
     {
         public bool IsSuccess { get; set; }
         public ErrorType ErrorType { get; set; }
-        public string ResponseMessage { get; set; } = null!;
+        public string? ResponseMessage { get; set; }
     }
 
     public class BaseResponseDto<T> : BaseResponseDto

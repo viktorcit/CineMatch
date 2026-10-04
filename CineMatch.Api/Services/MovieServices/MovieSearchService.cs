@@ -28,11 +28,11 @@ namespace CineMatch.Api.Services.MovieServices
             if (string.IsNullOrWhiteSpace(inputUrl))
             {
                 _logger.LogInformation("поле ссылки пусто");
-                return ErrorFactory.Fail<MovieInfo>(ErrorType.BadRequest, "Input cannot be null.");
+                return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, "Input cannot be null.");
             }
             if (!IsTmdbLink(inputUrl))
             {
-                return ErrorFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
+                return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
             }
 
             try
@@ -41,29 +41,29 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieId == 0)
                 {
                     _logger.LogInformation("неправильная ссылка");
-                    return ErrorFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
+                    return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
                 var contentType = ContentTypeCheck(inputUrl);
                 if (contentType == ContentType.Unknown)
                 {
                     _logger.LogInformation("неправильная ссылка");
-                    return ErrorFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
+                    return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
                 var movieDetails = await _tmdbService.GetMovieDetailsAsync(movieId, contentType);
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
-                    return ErrorFactory.Fail<MovieInfo>(ErrorType.NotFound, "Movie not found");
+                    return ResponseFactory.Fail<MovieInfo>(ErrorType.NotFound, "Movie not found");
                 }
                 _logger.LogInformation("фильм найден");
-                return ErrorFactory.Ok(movieDetails, "Movie details fetched successfully.");
+                return ResponseFactory.Ok(movieDetails);
             }
             catch (Exception ex)
             {
                 _logger.LogInformation($"An error occurred during get movie by id: {ex.Message}");
-                return ErrorFactory.Fail<MovieInfo>(ErrorType.ServerError, ResponseMessages.ServerError);
+                return ResponseFactory.Fail<MovieInfo>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }
 
@@ -72,7 +72,7 @@ namespace CineMatch.Api.Services.MovieServices
             if (string.IsNullOrWhiteSpace(mainInput))
             {
                 _logger.LogInformation("Поле ввода пустое");
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.BadRequest, "Input cannot be null");
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.BadRequest, "Input cannot be null");
             }
 
             try
@@ -81,15 +81,15 @@ namespace CineMatch.Api.Services.MovieServices
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
-                    return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.BadRequest, "Movie not found.");
+                    return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.BadRequest, "Movie not found.");
                 }
                 _logger.LogInformation("фильм найден");
-                return ErrorFactory.Ok(movieDetails, "Movie details fetched successfully.");
+                return ResponseFactory.Ok(movieDetails);
             }
             catch (Exception ex)
             {
                 _logger.LogInformation($"An error occurred while searching for the movie: {ex.Message}");
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.ServerError, ResponseMessages.ServerError);
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }
 

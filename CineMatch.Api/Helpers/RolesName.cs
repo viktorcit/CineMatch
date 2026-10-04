@@ -1,6 +1,6 @@
-﻿namespace CineMatch.Api.Enums
+﻿namespace CineMatch.Api.Helpers
 {
-    public class Roles
+    public class RolesName
     {
         public const string Admin = "Admin";
         public const string User = "User";

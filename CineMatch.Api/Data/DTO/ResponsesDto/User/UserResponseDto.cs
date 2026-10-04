@@ -2,7 +2,7 @@
 {
     public class UserResponseDto
     {
+        public required string UserId { get; set; }
         public required string UserName { get; set; }
-        public required List<string> UserRoles { get; set; } = [];
     }
 }

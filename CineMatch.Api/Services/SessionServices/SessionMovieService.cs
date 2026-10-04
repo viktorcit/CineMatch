@@ -26,16 +26,16 @@ namespace CineMatch.Api.Services.SessionServices
             var session = UserPartisipating(sessionCode, userId);
             if (session == null)
             {
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
             var sessionMovies = await FindSessionMovies(session.Id);
             if (sessionMovies == null || sessionMovies.Count == 0)
             {
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No movies found for this session");
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No movies found for this session");
             }
 
-            return ErrorFactory.Ok(sessionMovies, "Films retrieved successfully");
+            return ResponseFactory.Ok(sessionMovies);
         }
 
         public async Task<BaseResponseDto<List<MovieInfo>>> GetMatchedInSessionMovieAsync(string sessionCode, string userId)
@@ -43,22 +43,22 @@ namespace CineMatch.Api.Services.SessionServices
             var session = UserPartisipating(sessionCode, userId);
             if (session == null)
             {
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
             var matchedMovieIds = await GetMatchedMoviesIds(session.Id);
             if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
             var matchedMovies = await CreateMatchedMoviesList(matchedMovieIds);
             if (matchedMovies == null || matchedMovies.Count == 0)
             {
-                return ErrorFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
+                return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
-            return ErrorFactory.Ok(matchedMovies, "Matched movies retrieved successfully");
+            return ResponseFactory.Ok(matchedMovies);
         }
 
         public async Task<BaseResponseDto<MovieInfo>> GetRandomMatchedFilmAsync(string sessionCode, string userId)
@@ -66,24 +66,24 @@ namespace CineMatch.Api.Services.SessionServices
             var session = UserPartisipating(sessionCode, userId);
             if (session == null)
             {
-                return ErrorFactory.Fail<MovieInfo>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
+                return ResponseFactory.Fail<MovieInfo>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
             var matchedMovieIds = await GetMatchedMoviesIds(session.Id);
             if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
-                return ErrorFactory.Fail<MovieInfo>(ErrorType.NoContent, "No matched movies found for this session");
+                return ResponseFactory.Fail<MovieInfo>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
             var randomMovie = await RandomMovie(matchedMovieIds);
             if (randomMovie == null)
             {
-                return ErrorFactory.Fail<MovieInfo>(ErrorType.NotFound, "Matched movie not found");
+                return ResponseFactory.Fail<MovieInfo>(ErrorType.NotFound, "Matched movie not found");
             }
 
             var response = CreateMovieDto(randomMovie);
 
-            return ErrorFactory.Ok(response, "Random matched movie retrieved successfully");
+            return ResponseFactory.Ok(response);
         }
 
         public async Task<BaseResponseDto> DeleteMovieFromSessionAsync(int movieId, string userId)
@@ -91,12 +91,12 @@ namespace CineMatch.Api.Services.SessionServices
             var sessionParticipant = await _db.SessionParticipants.FirstOrDefaultAsync(sp => sp.UserId == userId);
             if (sessionParticipant == null)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a participant in any session.");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You are not a participant in any session.");
             }
             var sessionMovie = await _db.SessionMovies.FirstOrDefaultAsync(m => m.Id == movieId && m.SessionId == sessionParticipant.SessionId);
             if (sessionMovie == null)
             {
-                return ErrorFactory.Fail(ErrorType.NotFound, "Movie not found from this session.");
+                return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found from this session.");
             }
 
             try
@@ -107,9 +107,9 @@ namespace CineMatch.Api.Services.SessionServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while deleting the movie from the session.");
-                return ErrorFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
+                return ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
             }
-            return ErrorFactory.Ok("Movie retrieved successfully.");
+            return ResponseFactory.Ok("Movie retrieved successfully.");
         }
 
         //private methods

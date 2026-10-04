@@ -1,5 +1,5 @@
 ﻿using CineMatch.Api.Entity;
-using CineMatch.Api.Enums;
+using CineMatch.Api.Helpers;
 using Microsoft.AspNetCore.Identity;
 
 namespace CineMatch.Api.Data
@@ -31,7 +31,7 @@ namespace CineMatch.Api.Data
 
         public async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
         {
-            string[] roleNames = { Roles.Admin, Roles.User };
+            string[] roleNames = [RolesName.Admin, RolesName.User];
 
             foreach (var roleName in roleNames)
             {
@@ -54,7 +54,7 @@ namespace CineMatch.Api.Data
             if (nameExists != null)
             {
                 var userRole = await userManager.GetRolesAsync(nameExists);
-                if (userRole.Contains(Roles.Admin))
+                if (userRole.Contains(RolesName.Admin))
                 {
                     return;
                 }
@@ -73,7 +73,7 @@ namespace CineMatch.Api.Data
                     var errorMessages = string.Join(", ", newAdmin.Errors.Select(e => e.Description));
                     throw new InvalidOperationException($"Failed to create admin user: {errorMessages}");
                 }
-                var addToRoleResult = await userManager.AddToRoleAsync(adminUser, Roles.Admin);
+                var addToRoleResult = await userManager.AddToRoleAsync(adminUser, RolesName.Admin);
                 if (!addToRoleResult.Succeeded)
                 {
                     var errorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));

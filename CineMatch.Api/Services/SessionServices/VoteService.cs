@@ -25,7 +25,7 @@ namespace CineMatch.Api.Services.SessionServices
             var sessionId = await PrepareVote(userId, movieId);
             if (sessionId == null)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You cannot vote.");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You cannot vote.");
             }
 
             var vote = new Vote
@@ -40,7 +40,7 @@ namespace CineMatch.Api.Services.SessionServices
             await _db.SaveChangesAsync();
 
             _logger.LogInformation("участник {participantId} голосует за фильм {movieId} в сессии {sessionId}", userId, movieId, sessionId);
-            return ErrorFactory.Ok("Film liked successfully");
+            return ResponseFactory.Ok("Film liked successfully");
         }
 
         public async Task<BaseResponseDto> DislikeFilmsAsync(string userId, int movieId)
@@ -48,7 +48,7 @@ namespace CineMatch.Api.Services.SessionServices
             var sessionId = await PrepareVote(userId, movieId);
             if (sessionId == null)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You cannot vote.");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You cannot vote.");
             }
 
             var vote = new Vote
@@ -62,7 +62,7 @@ namespace CineMatch.Api.Services.SessionServices
             _db.Votes.Add(vote);
             await _db.SaveChangesAsync();
 
-            return ErrorFactory.Ok("Film disliked successfully");
+            return ResponseFactory.Ok("Film disliked successfully");
         }
 
         public async Task<BaseResponseDto> ClearSessionVotesAsync(string userId)
@@ -71,17 +71,17 @@ namespace CineMatch.Api.Services.SessionServices
                 .FirstOrDefaultAsync(p => p.CreatorUserId == userId);
             if (sessionCreator == null)
             {
-                return ErrorFactory.Fail(ErrorType.Conflict, "You are not a creator of any session");
+                return ResponseFactory.Fail(ErrorType.Conflict, "You are not a creator of any session");
             }
 
             var votesToRemove = await _db.Votes.Where(v => v.SessionId == sessionCreator.Id).ToListAsync();
             if (votesToRemove == null || votesToRemove.Count == 0)
             {
-                return ErrorFactory.Fail(ErrorType.NoContent, "No votes to clear for this session");
+                return ResponseFactory.Fail(ErrorType.NoContent, "No votes to clear for this session");
             }
             _db.Votes.RemoveRange(votesToRemove);
             await _db.SaveChangesAsync();
-            return ErrorFactory.Ok("Session votes cleared successfully");
+            return ResponseFactory.Ok("Session votes cleared successfully");
         }
 
 
