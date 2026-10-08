@@ -2,25 +2,34 @@
 using CineMatch.Api.Data.DTO.ResponsesDto;
 using CineMatch.Api.Data.DTO.ResponsesDto.User;
 using CineMatch.Api.Entity;
+using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IUserServices;
+using Microsoft.AspNetCore.Identity;
 
 namespace CineMatch.Api.Services.UserServices
 {
     public class AccountService : IAccountService
     {
         private readonly AppDbContext _db;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public AccountService(AppDbContext db)
+        public AccountService(AppDbContext db, UserManager<ApplicationUser> userManager)
         {
             _db = db;
+            _userManager = userManager;
         }
 
 
 
-        public async Task<BaseResponseDto<UserResponseDto>> GetAccountInfoAsync(ApplicationUser user)
+        public async Task<BaseResponseDto<PrivateUserResponseDto>> GetAccountInfoAsync(string userId)
         {
-            var response = new UserResponseDto
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return ResponseFactory.Fail<PrivateUserResponseDto>(ErrorType.Unauthorized, "Account not found");
+            }
+            var response = new PrivateUserResponseDto
             {
                 UserId = user.Id,
                 UserName = user.UserName
@@ -28,9 +37,21 @@ namespace CineMatch.Api.Services.UserServices
             return ResponseFactory.Ok(response);
         }
 
-        public async Task<BaseResponseDto> GetAccountByUserNameAsync()
+        public async Task<BaseResponseDto<PublicUserResponseDto>> GetAccountByUserNameAsync(string userName)
         {
-            return ResponseFactory.Ok("");
+            var user = await _userManager.FindByNameAsync(userName);
+            if (user == null)
+            {
+                return ResponseFactory.Fail<PublicUserResponseDto>(ErrorType.NotFound);
+            }
+
+            var response = new PublicUserResponseDto
+            {
+                UserId = user.Id,
+                UserName = user.UserName
+            };
+
+            return ResponseFactory.Ok(response);
         }
 
         public async Task<BaseResponseDto> UpdateAccountInfoAsync()

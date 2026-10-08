@@ -7,7 +7,7 @@ namespace CineMatch.Api.Services.Interfaces.IUserServices
 {
     public interface IAccountService
     {
-        Task<BaseResponseDto<UserResponseDto>> GetAccountInfoAsync(ApplicationUser user);
+        Task<BaseResponseDto<PrivateUserResponseDto>> GetAccountInfoAsync(ApplicationUser user);
 
         Task<BaseResponseDto> GetAccountByUserNameAsync();
 

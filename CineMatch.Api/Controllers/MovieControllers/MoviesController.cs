@@ -107,7 +107,6 @@ namespace CineMatch.Api.Controllers.MovieControllers
                 _logger.LogInformation("Некорректный id");
                 return NotFound("Movie not found for deletion");
             }
-            var movie = await _movieService.GetMovieByIdAsync(id);
             var result = await _movieService.DeleteMovieAsync(id);
             return result.ErrorType switch
             {
