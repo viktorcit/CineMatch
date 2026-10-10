@@ -5,7 +5,7 @@ namespace CineMatch.Api.Helpers
 {
     public static class ResponseFactory
     {
-        public static BaseResponseDto Ok(string message)
+        public static BaseResponseDto Ok(string? message = null)
         {
             return new BaseResponseDto
             {
