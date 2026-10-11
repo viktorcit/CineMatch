@@ -12,12 +12,10 @@ namespace CineMatch.Api.Services.UserServices
 {
     public class AccountService : IAccountService
     {
-        private readonly AppDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public AccountService(AppDbContext db, UserManager<ApplicationUser> userManager)
+        public AccountService(UserManager<ApplicationUser> userManager)
         {
-            _db = db;
             _userManager = userManager;
         }
 
@@ -57,7 +55,15 @@ namespace CineMatch.Api.Services.UserServices
 
         public async Task<BaseResponseDto> UpdateAccountInfoAsync(string userId, UpdateAccountRequestDto dto)
         {
-            if (dto.GetType().GetProperties().All(p => p.GetValue(dto) is null))
+            if (dto.GetType().GetProperties().All(p =>
+            {
+                var value = p.GetValue(dto);
+                if (value is string text)
+                {
+                    return string.IsNullOrWhiteSpace(text);
+                }
+                return value == null;
+            }))
             {
                 return ResponseFactory.Fail(ErrorType.BadRequest, "No fields to update");
             }
@@ -89,6 +95,7 @@ namespace CineMatch.Api.Services.UserServices
                     {
                         return ResponseFactory.Fail(ErrorType.Conflict, "Concurrency failure");
                     }
+                    return ResponseFactory.Fail(ErrorType.ServerError, "An error occurred while updating account.");
                 }
             }
 
@@ -102,13 +109,52 @@ namespace CineMatch.Api.Services.UserServices
             {
                 return ResponseFactory.Fail(ErrorType.Unauthorized);
             }
-            await _userManager.DeleteAsync(user);
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                var error = result.Errors.ToArray();
+                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+                {
+                    return ResponseFactory.Fail(ErrorType.Conflict, "Concurrency failure");
+                }
+                return ResponseFactory.Fail(ErrorType.ServerError, "An error occurred while deleting account.");
+            }
             return ResponseFactory.Ok();
         }
 
-        public async Task<BaseResponseDto> ChangePasswordAsync()
+        public async Task<BaseResponseDto> ChangePasswordAsync(string userId, ChangePasswordRequestDto dto)
         {
-            return ResponseFactory.Ok("");
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+            {
+                return ResponseFactory.Fail(ErrorType.Unauthorized);
+            }
+
+            var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+            if (!result.Succeeded)
+            {
+                var error = result.Errors.ToArray();
+                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordMismatch)))
+                {
+                    return ResponseFactory.Fail(ErrorType.BadRequest, "Current password is incorrect");
+                }
+                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresNonAlphanumeric))
+                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresUpper))
+                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresDigit))
+                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordTooShort))
+                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresLower))
+                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresUniqueChars)))
+                {
+                    return ResponseFactory.Fail(ErrorType.BadRequest, "Password requirements not met.");
+                }
+                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
+                {
+                    return ResponseFactory.Fail(ErrorType.Conflict, "Concurrency failure");
+                }
+                return ResponseFactory.Fail(ErrorType.ServerError, "An error occurred while changing the password.");
+            }
+
+            return ResponseFactory.Ok("Password successfully changed.");
         }
     }
 }
