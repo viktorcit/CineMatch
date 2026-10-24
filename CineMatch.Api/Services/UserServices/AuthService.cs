@@ -53,11 +53,18 @@ namespace CineMatch.Api.Services.UserServices
                     var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
                     _logger.LogWarning("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
 
-                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.BadRequest, errorMessages);
+                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
                 }
                 _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
 
-                // TODO: assign default user role after roles implementation
+                var addToRoleResult = await _userManager.AddToRoleAsync(newUser, RolesName.User);
+                if (!addToRoleResult.Succeeded)
+                {
+                    var roleErrorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));
+                    _logger.LogWarning("Adding user {UserName} to role failed. Errors: {Errors}", newUser.UserName, roleErrorMessages);
+
+                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
+                }
 
                 var tokens = await CreateTokens(newUser);
                 if (tokens == null)
