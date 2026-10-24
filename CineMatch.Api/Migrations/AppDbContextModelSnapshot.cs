@@ -17,7 +17,7 @@ namespace CineMatch.Api.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
 
-            modelBuilder.Entity("CineMatch.Api.Model.ApplicationUser", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("TEXT");
@@ -69,6 +69,7 @@ namespace CineMatch.Api.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("UserName")
+                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
@@ -81,10 +82,13 @@ namespace CineMatch.Api.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
+                    b.HasIndex("UserName")
+                        .IsUnique();
+
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.Movie", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.Movie", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -95,7 +99,6 @@ namespace CineMatch.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Overview")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PosterUrl")
@@ -117,10 +120,13 @@ namespace CineMatch.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TMdbId")
+                        .IsUnique();
+
                     b.ToTable("Movies");
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.RefreshToken", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -132,11 +138,7 @@ namespace CineMatch.Api.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("ReplacedByToken")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("RevokedAt")
@@ -152,10 +154,12 @@ namespace CineMatch.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("RefreshTokens");
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.Session", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.Session", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -168,16 +172,22 @@ namespace CineMatch.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("CreatorClientId")
+                    b.Property<string>("CreatorUserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CreatorUserId")
+                        .IsUnique();
+
                     b.ToTable("Sessions");
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.SessionMovie", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.SessionMovie", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -193,20 +203,17 @@ namespace CineMatch.Api.Migrations
 
                     b.HasIndex("MovieId");
 
-                    b.HasIndex("SessionId");
+                    b.HasIndex("SessionId", "MovieId")
+                        .IsUnique();
 
                     b.ToTable("SessionMovies");
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.SessionParticipant", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.SessionParticipant", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("ClientId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("ParticipantNumber")
                         .HasColumnType("INTEGER");
@@ -214,14 +221,22 @@ namespace CineMatch.Api.Migrations
                     b.Property<int>("SessionId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("SessionId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("SessionId", "UserId")
+                        .IsUnique();
 
                     b.ToTable("SessionParticipants");
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.Vote", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.Vote", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -233,8 +248,9 @@ namespace CineMatch.Api.Migrations
                     b.Property<int>("MovieId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("ParticipantNumber")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("ParticipantId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("SessionId")
                         .HasColumnType("INTEGER");
@@ -243,7 +259,10 @@ namespace CineMatch.Api.Migrations
 
                     b.HasIndex("MovieId");
 
-                    b.HasIndex("SessionId");
+                    b.HasIndex("ParticipantId");
+
+                    b.HasIndex("SessionId", "ParticipantId", "MovieId")
+                        .IsUnique();
 
                     b.ToTable("Votes");
                 });
@@ -376,53 +395,75 @@ namespace CineMatch.Api.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.SessionMovie", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.RefreshToken", b =>
                 {
-                    b.HasOne("CineMatch.Api.Model.Movie", "Movie")
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CineMatch.Api.Entity.Session", b =>
+                {
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("CineMatch.Api.Entity.Session", "CreatorUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CineMatch.Api.Entity.SessionMovie", b =>
+                {
+                    b.HasOne("CineMatch.Api.Entity.Movie", "Movie")
                         .WithMany()
                         .HasForeignKey("MovieId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CineMatch.Api.Model.Session", "Session")
-                        .WithMany("SessionMovies")
+                    b.HasOne("CineMatch.Api.Entity.Session", null)
+                        .WithMany()
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Movie");
-
-                    b.Navigation("Session");
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.SessionParticipant", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.SessionParticipant", b =>
                 {
-                    b.HasOne("CineMatch.Api.Model.Session", "Session")
-                        .WithMany("Participants")
+                    b.HasOne("CineMatch.Api.Entity.Session", null)
+                        .WithMany()
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Session");
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
+                        .WithOne()
+                        .HasForeignKey("CineMatch.Api.Entity.SessionParticipant", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
-            modelBuilder.Entity("CineMatch.Api.Model.Vote", b =>
+            modelBuilder.Entity("CineMatch.Api.Entity.Vote", b =>
                 {
-                    b.HasOne("CineMatch.Api.Model.Movie", "Movie")
+                    b.HasOne("CineMatch.Api.Entity.Movie", null)
                         .WithMany()
                         .HasForeignKey("MovieId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CineMatch.Api.Model.Session", "Session")
-                        .WithMany("Votes")
-                        .HasForeignKey("SessionId")
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ParticipantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Movie");
-
-                    b.Navigation("Session");
+                    b.HasOne("CineMatch.Api.Entity.Session", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -436,7 +477,7 @@ namespace CineMatch.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("CineMatch.Api.Model.ApplicationUser", null)
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -445,7 +486,7 @@ namespace CineMatch.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("CineMatch.Api.Model.ApplicationUser", null)
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -460,7 +501,7 @@ namespace CineMatch.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CineMatch.Api.Model.ApplicationUser", null)
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -469,20 +510,11 @@ namespace CineMatch.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("CineMatch.Api.Model.ApplicationUser", null)
+                    b.HasOne("CineMatch.Api.Entity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("CineMatch.Api.Model.Session", b =>
-                {
-                    b.Navigation("Participants");
-
-                    b.Navigation("SessionMovies");
-
-                    b.Navigation("Votes");
                 });
 #pragma warning restore 612, 618
         }

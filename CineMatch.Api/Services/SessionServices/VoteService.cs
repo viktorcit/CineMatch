@@ -22,7 +22,7 @@ namespace CineMatch.Api.Services.SessionServices
 
         public async Task<BaseResponseDto> LikeFilmsAsync(string userId, int movieId)
         {
-            var sessionId = await PrepareVote(userId, movieId);
+            var sessionId = await PrepareVoteAsync(userId, movieId);
             if (sessionId == null)
             {
                 return ResponseFactory.Fail(ErrorType.Conflict, "You cannot vote.");
@@ -45,7 +45,7 @@ namespace CineMatch.Api.Services.SessionServices
 
         public async Task<BaseResponseDto> DislikeFilmsAsync(string userId, int movieId)
         {
-            var sessionId = await PrepareVote(userId, movieId);
+            var sessionId = await PrepareVoteAsync(userId, movieId);
             if (sessionId == null)
             {
                 return ResponseFactory.Fail(ErrorType.Conflict, "You cannot vote.");
@@ -86,7 +86,7 @@ namespace CineMatch.Api.Services.SessionServices
 
 
         //private methods
-        private async Task<int?> PrepareVote(string userId, int movieId)
+        private async Task<int?> PrepareVoteAsync(string userId, int movieId)
         {
             var clientParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(p => p.UserId == userId);

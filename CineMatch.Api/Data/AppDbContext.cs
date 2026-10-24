@@ -24,11 +24,8 @@ namespace CineMatch.Api.Data
             builder.Entity<ApplicationUser>(entity =>
             {
                 entity.HasIndex(u => u.UserName).IsUnique();
-                entity.Property(u => new
-                {
-                    u.UserName,
-                    u.Email
-                }).IsRequired();
+                //entity.Property(u => u.Email).IsRequired();
+                entity.Property(u =>u.UserName).IsRequired();
             });
 
             builder.Entity<ApplicationUser>()
@@ -58,7 +55,7 @@ namespace CineMatch.Api.Data
             //Movie
             builder.Entity<Movie>()
                 .HasMany<SessionMovie>()
-                .WithOne()
+                .WithOne(sm => sm.Movie)
                 .HasForeignKey(sm => sm.MovieId)
                 .OnDelete(DeleteBehavior.Cascade);
 
