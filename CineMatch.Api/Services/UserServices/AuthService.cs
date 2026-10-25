@@ -1,4 +1,5 @@
-﻿using CineMatch.Api.Data.Contracts;
+﻿using CineMatch.Api.Data;
+using CineMatch.Api.Data.Contracts;
 using CineMatch.Api.Data.DTO.RequestsDto.Auth;
 using CineMatch.Api.Data.DTO.ResponsesDto;
 using CineMatch.Api.Data.DTO.ResponsesDto.Tokens;
@@ -8,6 +9,7 @@ using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IJwtServices;
 using CineMatch.Api.Services.Interfaces.IUserServices;
 using Microsoft.AspNetCore.Identity;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CineMatch.Api.Services.UserServices
 {
@@ -17,45 +19,46 @@ namespace CineMatch.Api.Services.UserServices
         private readonly IRefreshTokenService _refreshTokenService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<AuthService> _logger;
+        private readonly AppDbContext _db;
 
         public AuthService(
             IJwtTokenService jwtTokenService,
             UserManager<ApplicationUser> userManager,
             IRefreshTokenService refreshTokenService,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            AppDbContext db)
         {
             _jwtTokenService = jwtTokenService;
             _userManager = userManager;
             _refreshTokenService = refreshTokenService;
             _logger = logger;
+            _db = db;
         }
 
         public async Task<BaseResponseDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
         {
+            var existingUser = await _userManager.FindByNameAsync(dto.UserName);
+            if (existingUser != null)
+            {
+                return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Conflict, $"User with username '{dto.UserName}' already exists.");
+            }
+
+            await using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var existingUser = await _userManager.FindByNameAsync(dto.UserName);
-                if (existingUser != null)
-                {
-                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Conflict, $"User with username '{dto.UserName}' already exists.");
-                }
-
                 var newUser = CreateUserEntity(dto);
-                var passwordValidationResult = await _userManager.PasswordValidators.First().ValidateAsync(_userManager, newUser, dto.Password);
-                if (!passwordValidationResult.Succeeded)
-                {
-                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.BadRequest, "Password does not meet the requirements.");
-                }
-
                 var result = await _userManager.CreateAsync(newUser, dto.Password);
                 if (!result.Succeeded)
                 {
                     var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
                     _logger.LogWarning("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
 
+
+                    var errorMessagesList = result.Errors.ToList();
+                    //Handler
+                    await transaction.RollbackAsync();
                     return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
                 }
-                _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
 
                 var addToRoleResult = await _userManager.AddToRoleAsync(newUser, RolesName.User);
                 if (!addToRoleResult.Succeeded)
@@ -63,6 +66,7 @@ namespace CineMatch.Api.Services.UserServices
                     var roleErrorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));
                     _logger.LogWarning("Adding user {UserName} to role failed. Errors: {Errors}", newUser.UserName, roleErrorMessages);
 
+                    await transaction.RollbackAsync();
                     return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
                 }
 
@@ -70,15 +74,20 @@ namespace CineMatch.Api.Services.UserServices
                 if (tokens == null)
                 {
                     _logger.LogError("Token generation failed for user {UserName}.", newUser.UserName);
+
+                    await transaction.RollbackAsync();
                     return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
                 }
-                _logger.LogInformation("Tokens generated successfully for user {UserName}.", newUser.UserName);
 
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
                 return ResponseFactory.Ok(tokens);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred during user registration.");
+                await transaction.RollbackAsync();
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }
