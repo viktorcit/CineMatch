@@ -79,7 +79,13 @@ namespace CineMatch.Api.Services.UserServices
                 return ResponseFactory.Fail(ErrorType.Forbidden);
             }
 
-            await _userManager.DeleteAsync(user);
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                var error = result.Errors.FirstOrDefault();
+                var handlerResponse = IdentityErrorHandler.ErrorHandler(error);
+                return ResponseFactory.Fail(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
+            }
             return ResponseFactory.Ok("Delete successfully.");
         }
 

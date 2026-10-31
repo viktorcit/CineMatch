@@ -81,21 +81,9 @@ namespace CineMatch.Api.Services.UserServices
                 var result = await _userManager.UpdateAsync(user);
                 if (!result.Succeeded)
                 {
-                    var error = result.Errors.ToArray();
-
-                    if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.DuplicateUserName)))
-                    {
-                        return ResponseFactory.Fail(ErrorType.Conflict, "Username is already taken");
-                    }
-                    if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidUserName)))
-                    {
-                        return ResponseFactory.Fail(ErrorType.BadRequest, "Invalid username");
-                    }
-                    if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
-                    {
-                        return ResponseFactory.Fail(ErrorType.Conflict, "Concurrency failure");
-                    }
-                    return ResponseFactory.Fail(ErrorType.ServerError, "An error occurred while updating account.");
+                    var error = result.Errors.FirstOrDefault();
+                    var handlerResponse = IdentityErrorHandler.ErrorHandler(error);
+                    return ResponseFactory.Fail(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
                 }
             }
 
@@ -112,12 +100,9 @@ namespace CineMatch.Api.Services.UserServices
             var result = await _userManager.DeleteAsync(user);
             if (!result.Succeeded)
             {
-                var error = result.Errors.ToArray();
-                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
-                {
-                    return ResponseFactory.Fail(ErrorType.Conflict, "Concurrency failure");
-                }
-                return ResponseFactory.Fail(ErrorType.ServerError, "An error occurred while deleting account.");
+                var error = result.Errors.FirstOrDefault();
+                var handlerResponse = IdentityErrorHandler.ErrorHandler(error);
+                return ResponseFactory.Fail(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
             }
             return ResponseFactory.Ok();
         }
@@ -133,25 +118,9 @@ namespace CineMatch.Api.Services.UserServices
             var result = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
             if (!result.Succeeded)
             {
-                var error = result.Errors.ToArray();
-                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordMismatch)))
-                {
-                    return ResponseFactory.Fail(ErrorType.BadRequest, "Current password is incorrect");
-                }
-                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresNonAlphanumeric))
-                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresUpper))
-                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresDigit))
-                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordTooShort))
-                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresLower))
-                    || error.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordRequiresUniqueChars)))
-                {
-                    return ResponseFactory.Fail(ErrorType.BadRequest, "Password requirements not met.");
-                }
-                if (error.Any(e => e.Code == nameof(IdentityErrorDescriber.ConcurrencyFailure)))
-                {
-                    return ResponseFactory.Fail(ErrorType.Conflict, "Concurrency failure");
-                }
-                return ResponseFactory.Fail(ErrorType.ServerError, "An error occurred while changing the password.");
+                var error = result.Errors.FirstOrDefault();
+                var handlerResponse = IdentityErrorHandler.ErrorHandler(error);
+                return ResponseFactory.Fail(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
             }
 
             return ResponseFactory.Ok("Password successfully changed.");

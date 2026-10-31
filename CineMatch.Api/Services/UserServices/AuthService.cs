@@ -53,11 +53,10 @@ namespace CineMatch.Api.Services.UserServices
                     var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
                     _logger.LogWarning("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
 
-
-                    var errorMessagesList = result.Errors.ToList();
-                    //Handler
+                    var errorMessagesList = result.Errors.FirstOrDefault();
+                    var handlerResponse = IdentityErrorHandler.ErrorHandler(errorMessagesList);
                     await transaction.RollbackAsync();
-                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
+                    return ResponseFactory.Fail<TokensResponseDto>(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
                 }
 
                 var addToRoleResult = await _userManager.AddToRoleAsync(newUser, RolesName.User);
@@ -66,8 +65,10 @@ namespace CineMatch.Api.Services.UserServices
                     var roleErrorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));
                     _logger.LogWarning("Adding user {UserName} to role failed. Errors: {Errors}", newUser.UserName, roleErrorMessages);
 
+                    var errorMessagesList = addToRoleResult.Errors.FirstOrDefault();
+                    var handlerResponse = IdentityErrorHandler.ErrorHandler(errorMessagesList);
                     await transaction.RollbackAsync();
-                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
+                    return ResponseFactory.Fail<TokensResponseDto>(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
                 }
 
                 var tokens = await CreateTokens(newUser);

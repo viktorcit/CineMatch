@@ -3,6 +3,6 @@
 namespace CineMatch.Api.Helpers
 {
     public sealed record AppError(
-        ErrorType Type,
+        ErrorType ErrorType,
         string ResponseMessage);
 }
