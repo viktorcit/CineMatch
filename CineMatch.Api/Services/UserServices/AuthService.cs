@@ -9,7 +9,6 @@ using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IJwtServices;
 using CineMatch.Api.Services.Interfaces.IUserServices;
 using Microsoft.AspNetCore.Identity;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CineMatch.Api.Services.UserServices
 {
@@ -20,19 +19,22 @@ namespace CineMatch.Api.Services.UserServices
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<AuthService> _logger;
         private readonly AppDbContext _db;
+        private readonly SignInManager<ApplicationUser> _signInManager;
 
         public AuthService(
             IJwtTokenService jwtTokenService,
             UserManager<ApplicationUser> userManager,
             IRefreshTokenService refreshTokenService,
             ILogger<AuthService> logger,
-            AppDbContext db)
+            AppDbContext db,
+            SignInManager<ApplicationUser> signInManager)
         {
             _jwtTokenService = jwtTokenService;
             _userManager = userManager;
             _refreshTokenService = refreshTokenService;
             _logger = logger;
             _db = db;
+            _signInManager = signInManager;
         }
 
         public async Task<BaseResponseDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
@@ -101,9 +103,13 @@ namespace CineMatch.Api.Services.UserServices
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Unauthorized, ResponseMessages.Unauthorized);
             }
 
-            var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
-            if (!passwordValid)
+            var signInResult = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
+            if (!signInResult.Succeeded)
             {
+                if (signInResult.IsLockedOut)
+                {
+                    return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Unauthorized, "Your account is temporarily locked. Please try again later.");
+                }
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Unauthorized, ResponseMessages.Unauthorized);
             }
 
