@@ -1,6 +1,7 @@
 using CineMatch.Api.Configuration;
 using CineMatch.Api.Data;
 using CineMatch.Api.Entity;
+using CineMatch.Api.Midlleware;
 using CineMatch.Api.Services.Interfaces.IJwtServices;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
 using CineMatch.Api.Services.Interfaces.ISessionServices;
@@ -34,7 +35,6 @@ builder.Services.AddScoped<IMovieService, MovieService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
@@ -66,6 +66,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 
 var app = builder.Build();
+
+app.UseMiddleware<ExeptionHandlingMidlleware>();
+
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
 using var scope = app.Services.CreateScope();

@@ -58,6 +58,6 @@ namespace CineMatch.Api.Controllers.UserControllers
                 ErrorType.ServerError => StatusCode(500, result.ResponseMessage),
                 _ => Ok(result.Data),
             };
-        }
+        } 
     }
 }
