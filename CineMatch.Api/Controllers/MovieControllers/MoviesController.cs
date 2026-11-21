@@ -2,6 +2,7 @@
 using CineMatch.Api.Data.DTO.RequestsDto.Movie;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Extensions;
+using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,10 +26,10 @@ namespace CineMatch.Api.Controllers.MovieControllers
 
 
         [HttpGet]
-        public async Task<ActionResult<List<MovieInfo>>> GetAllMoviesAsync()
+        public async Task<ActionResult<List<MovieInfo>>> GetAllMoviesAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("попытка получить все фильмы из базы данных");
-            var result = await _movieService.GetAllMoviesAsync();
+            var result = await _movieService.GetAllMoviesAsync(cancellationToken);
             return result;
         }
 
@@ -97,6 +98,7 @@ namespace CineMatch.Api.Controllers.MovieControllers
         }
 
 
+        [Authorize(Roles = RolesName.Admin)]
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteMovieAsync(int id)
         {

@@ -5,7 +5,6 @@ using CineMatch.Api.Entity;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CineMatch.Api.Services.MovieServices
@@ -14,17 +13,14 @@ namespace CineMatch.Api.Services.MovieServices
     {
         private readonly ILogger<MovieService> _logger;
         private readonly AppDbContext _db;
-        private readonly IMovieSearchService _movieSearchService;
         private readonly ITmdbService _tmdbService;
         public MovieService(
             ILogger<MovieService> logger,
             AppDbContext db,
-            IMovieSearchService movieSearchService,
             ITmdbService tmdbService)
         {
             _logger = logger;
             _db = db;
-            _movieSearchService = movieSearchService;
             _tmdbService = tmdbService;
         }
 
@@ -34,23 +30,27 @@ namespace CineMatch.Api.Services.MovieServices
             _logger.LogInformation("Сохранение фильма");
 
             var SessionParticipant = await _db.SessionParticipants
-                .FirstOrDefaultAsync(sp => sp.UserId == userId);
+                .FirstOrDefaultAsync(sp => sp.UserId == userId, 
+                cancellationToken);
             if (SessionParticipant == null)
             {
                 _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", userId);
                 return ResponseFactory.Fail(ErrorType.NotFound, "You are not in any session and cannot save movies or session closed.");
             }
 
-            var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Id == SessionParticipant.SessionId);
+            var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Id == SessionParticipant.SessionId,
+                cancellationToken);
             if (session == null)
             {
                 return ResponseFactory.Fail(ErrorType.NotFound, "Session not found for the client.");
             }
 
-            var movieExists = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == tmdbId && m.Type == type);
+            var movieExists = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == tmdbId && m.Type == type,
+                cancellationToken);
             if (movieExists != null)
             {
-                var movieExistSession = await _db.SessionMovies.FirstOrDefaultAsync(sm => sm.MovieId == movieExists.Id && sm.SessionId == session.Id);
+                var movieExistSession = await _db.SessionMovies.FirstOrDefaultAsync(sm => sm.MovieId == movieExists.Id && sm.SessionId == session.Id,
+                    cancellationToken);
                 if (movieExistSession != null)
                 {
                     _logger.LogInformation("Фильм уже добавлен в сессию и есть в базе данных");
@@ -61,7 +61,7 @@ namespace CineMatch.Api.Services.MovieServices
                     _logger.LogInformation("Фильм уже существует в базе данных, но не добавлен в сессию. Добавляем фильм в сессию.");
                     var sessionMovie = CreateSessionMovieEntity(session, movieExists);
                     _db.SessionMovies.Add(sessionMovie);
-                    await _db.SaveChangesAsync();
+                    await _db.SaveChangesAsync(cancellationToken);
 
                     return ResponseFactory.Ok("Movie has been added to the session.");
                 }
@@ -77,7 +77,7 @@ namespace CineMatch.Api.Services.MovieServices
                 {
                     return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found with same TMDb Id");
                 }
-                await AddFilmInDbAndSession(movie, session);
+                await AddFilmInDbAndSession(movie, session, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -88,7 +88,7 @@ namespace CineMatch.Api.Services.MovieServices
             return ResponseFactory.Ok("Movie saved successfully.");
         }
 
-        public async Task<List<MovieInfo>> GetAllMoviesAsync()
+        public async Task<List<MovieInfo>> GetAllMoviesAsync(CancellationToken cancellationToken)
         {
             var movies = await _db.Movies
                 .Select(m => new MovieInfo
@@ -101,7 +101,7 @@ namespace CineMatch.Api.Services.MovieServices
                     Overview = m.Overview,
                     PosterUrl = m.PosterUrl,
                     Genres = m.Genres
-                }).ToListAsync();
+                }).ToListAsync(cancellationToken);
 
             _logger.LogInformation("Получено {Count} фильмов из базы данных", movies.Count);
             return movies;
@@ -132,7 +132,7 @@ namespace CineMatch.Api.Services.MovieServices
             return ResponseFactory.Ok(response);
         }
 
-        [Authorize] //TODO admin only can delete movie from DB
+
         public async Task<BaseResponseDto> DeleteMovieAsync(int id)
         {
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == id);
@@ -159,12 +159,12 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private methods
-        private async Task AddFilmInDbAndSession(Movie movie, Session session)
+        private async Task AddFilmInDbAndSession(Movie movie, Session session, CancellationToken cancellationToken)
         {
             var sessionMovie = CreateSessionMovieEntity(session, movie);
-            await _db.Movies.AddAsync(movie);
-            await _db.SessionMovies.AddAsync(sessionMovie);
-            await _db.SaveChangesAsync();
+            await _db.Movies.AddAsync(movie, cancellationToken);
+            await _db.SessionMovies.AddAsync(sessionMovie, cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
         }
 
         private async Task<Movie?> GetMovieDataByIdAsync(int tmdbId, ContentType type, CancellationToken cancellationToken)
