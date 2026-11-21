@@ -1,11 +1,8 @@
 ﻿using CineMatch.Api.Data.Contracts;
 using CineMatch.Api.Data.DTO.ResponsesDto;
-using CineMatch.Api.Entity;
 using CineMatch.Api.Enums;
 using CineMatch.Api.Helpers;
 using CineMatch.Api.Services.Interfaces.IMovieServices;
-using System.Net.Http.Headers;
-using System.Text.Json;
 
 namespace CineMatch.Api.Services.MovieServices
 {
@@ -23,7 +20,7 @@ namespace CineMatch.Api.Services.MovieServices
 
 
 
-        public async Task<BaseResponseDto<MovieInfo>> GetMovieByUrlAsync(string inputUrl)
+        public async Task<BaseResponseDto<MovieInfo>> GetMovieByUrlAsync(string inputUrl, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(inputUrl))
             {
@@ -51,7 +48,7 @@ namespace CineMatch.Api.Services.MovieServices
                     return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
-                var movieDetails = await _tmdbService.GetMovieDetailsAsync(movieId, contentType);
+                var movieDetails = await _tmdbService.GetMovieDetailsAsync(movieId, contentType, cancellationToken);
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
@@ -67,7 +64,7 @@ namespace CineMatch.Api.Services.MovieServices
             }
         }
 
-        public async Task<BaseResponseDto<List<MovieInfo>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear)
+        public async Task<BaseResponseDto<List<MovieInfo>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(mainInput))
             {
@@ -77,7 +74,7 @@ namespace CineMatch.Api.Services.MovieServices
 
             try
             {
-                var movieDetails = await _tmdbService.GetMovieDetailsFromSearchAsync(mainInput, inputContentType, inputYear);
+                var movieDetails = await _tmdbService.GetMovieDetailsFromSearchAsync(mainInput, inputContentType, inputYear, cancellationToken);
                 if (movieDetails == null)
                 {
                     _logger.LogInformation("фильм не найден");
@@ -97,7 +94,6 @@ namespace CineMatch.Api.Services.MovieServices
         //private methods
 
         //static private methods
-
         private static int ExtractIdFromLink(string inputUrl)
         {
             var marker = "/movie/";

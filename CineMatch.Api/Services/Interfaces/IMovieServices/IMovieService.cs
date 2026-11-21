@@ -6,7 +6,7 @@ namespace CineMatch.Api.Services.Interfaces.IMovieServices
 {
     public interface IMovieService
     {
-        Task<BaseResponseDto> SaveMovieAsync(int tmdbId, ContentType type, string userId);
+        Task<BaseResponseDto> SaveMovieAsync(int tmdbId, ContentType type, string userId, CancellationToken cancellationToken);
         Task<List<MovieInfo>> GetAllMoviesAsync();
         Task<BaseResponseDto> DeleteMovieAsync(int id);
         Task<BaseResponseDto<MovieInfo>> GetMovieByIdAsync(int id);

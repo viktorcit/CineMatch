@@ -19,17 +19,17 @@ namespace CineMatch.Api.Services.MovieServices
                 ?? throw new InvalidOperationException("TMDb token not configured");
         }
 
-        public async Task<MovieInfo?> GetMovieDetailsAsync(int tmdbId, ContentType type)
+        public async Task<MovieInfo?> GetMovieDetailsAsync(int tmdbId, ContentType type, CancellationToken cancellationToken)
         {
             var url = $"https://api.themoviedb.org/3/{type}/{tmdbId}?language=ru-RU";
 
-            var response = await SendRequest(url);
+            var response = await SendRequest(url, cancellationToken);
             if (response == null)
             {
                 return null;
             }
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = JsonDocument.Parse(json);
 
             var movie = GetMovieData(type, doc, tmdbId);
@@ -38,31 +38,31 @@ namespace CineMatch.Api.Services.MovieServices
             return responseMovie;
         }
 
-        public async Task<List<MovieInfo>?> GetMovieDetailsFromSearchAsync(string title, ContentType type, int? year)
+        public async Task<List<MovieInfo>?> GetMovieDetailsFromSearchAsync(string title, ContentType type, int? year, CancellationToken cancellationToken)
         {
             var searchResult = new List<SearchResult>();
             if (type != ContentType.Unknown)
             {
-                searchResult = await SearchMovieAsync(title, type, year);
+                searchResult = await SearchMovieAsync(title, type, year, cancellationToken);
                 if (searchResult == null || searchResult.Count == 0)
                 {
-                    searchResult = await SearchMovieAsync(title, type, null);
+                    searchResult = await SearchMovieAsync(title, type, null, cancellationToken);
                 }
             }
             else
             {
-                searchResult = await SearchMovieAsync(title, ContentType.movie, year);
+                searchResult = await SearchMovieAsync(title, ContentType.movie, year, cancellationToken);
                 if (searchResult == null || searchResult.Count == 0)
                 {
-                    searchResult = await SearchMovieAsync(title, ContentType.movie, null);
+                    searchResult = await SearchMovieAsync(title, ContentType.movie, null, cancellationToken);
                 }
                 if (searchResult == null || searchResult.Count == 0)
                 {
-                    searchResult = await SearchMovieAsync(title, ContentType.tv, year);
+                    searchResult = await SearchMovieAsync(title, ContentType.tv, year, cancellationToken);
                 }
                 if (searchResult == null || searchResult.Count == 0)
                 {
-                    searchResult = await SearchMovieAsync(title, ContentType.tv, null);
+                    searchResult = await SearchMovieAsync(title, ContentType.tv, null, cancellationToken);
                 }
             }
 
@@ -75,7 +75,7 @@ namespace CineMatch.Api.Services.MovieServices
 
             foreach (var result in searchResult)
             {
-                var details = await GetMovieDetailsAsync(result.TmdbId, result.Type);
+                var details = await GetMovieDetailsAsync(result.TmdbId, result.Type, cancellationToken);
                 if (details != null)
                 {
                     movies.Add(details);
@@ -91,7 +91,7 @@ namespace CineMatch.Api.Services.MovieServices
 
 
         //private methods
-        private async Task<List<SearchResult>?> SearchMovieAsync(string inputTitle, ContentType inputType, int? inputYear)
+        private async Task<List<SearchResult>?> SearchMovieAsync(string inputTitle, ContentType inputType, int? inputYear, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(inputTitle))
             {
@@ -109,13 +109,13 @@ namespace CineMatch.Api.Services.MovieServices
                     : $"&first_air_date_year={inputYear}";
             }
 
-            var response = await SendRequest(url);
+            var response = await SendRequest(url, cancellationToken);
             if (response == null)
             {
                 return null;
             }
 
-            var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
             var doc = JsonDocument.Parse(json);
 
             if (!doc.RootElement.TryGetProperty("results", out var resultsArray))
@@ -133,12 +133,12 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private static methods
-        private async Task<HttpResponseMessage?> SendRequest(string url)
+        private async Task<HttpResponseMessage?> SendRequest(string url, CancellationToken cancellationToken)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tmdbApiToken);
 
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 return null;
@@ -147,7 +147,6 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private static methods
-
         private static List<SearchResult>? GetMoviesList(JsonElement resultsArray, ContentType inputType)
         {
             var resultsList = resultsArray
@@ -167,6 +166,7 @@ namespace CineMatch.Api.Services.MovieServices
             }
             return resultsList;
         }
+
         private static Movie GetMovieData(ContentType type, JsonDocument doc, int movieId)
         {
             var title = type == ContentType.movie

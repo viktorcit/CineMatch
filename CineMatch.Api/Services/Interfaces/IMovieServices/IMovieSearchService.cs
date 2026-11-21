@@ -6,7 +6,7 @@ namespace CineMatch.Api.Services.Interfaces.IMovieServices
 {
     public interface IMovieSearchService
     {
-        Task<BaseResponseDto<MovieInfo>> GetMovieByUrlAsync(string inputUrl);
-        Task<BaseResponseDto<List<MovieInfo>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear);
+        Task<BaseResponseDto<MovieInfo>> GetMovieByUrlAsync(string inputUrl, CancellationToken cancellationToken);
+        Task<BaseResponseDto<List<MovieInfo>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear, CancellationToken cancellationToken);
     }
 }

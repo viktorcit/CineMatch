@@ -6,7 +6,7 @@ namespace CineMatch.Api.Services.Interfaces.IMovieServices
 {
     public interface ITmdbService
     {
-        Task<MovieInfo?> GetMovieDetailsAsync(int movieId, ContentType type);
-        Task<List<MovieInfo>?> GetMovieDetailsFromSearchAsync(string title, ContentType type, int? year);
+        Task<MovieInfo?> GetMovieDetailsAsync(int movieId, ContentType type, CancellationToken cancellationToken);
+        Task<List<MovieInfo>?> GetMovieDetailsFromSearchAsync(string title, ContentType type, int? year, CancellationToken cancellationToken);
     }
 }

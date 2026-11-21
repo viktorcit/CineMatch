@@ -29,7 +29,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
 
-        public async Task<BaseResponseDto> SaveMovieAsync(int tmdbId, ContentType type, string userId)
+        public async Task<BaseResponseDto> SaveMovieAsync(int tmdbId, ContentType type, string userId, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Сохранение фильма");
 
@@ -72,7 +72,7 @@ namespace CineMatch.Api.Services.MovieServices
 
             try
             {
-                var movie = await GetMovieDataByIdAsync(tmdbId, type);
+                var movie = await GetMovieDataByIdAsync(tmdbId, type, cancellationToken);
                 if (movie == null)
                 {
                     return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found with same TMDb Id");
@@ -167,12 +167,12 @@ namespace CineMatch.Api.Services.MovieServices
             await _db.SaveChangesAsync();
         }
 
-        private async Task<Movie?> GetMovieDataByIdAsync(int tmdbId, ContentType type)
+        private async Task<Movie?> GetMovieDataByIdAsync(int tmdbId, ContentType type, CancellationToken cancellationToken)
         {
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.TMdbId == tmdbId && m.Type == type);
             if (movie == null)
             {
-                movie = await FetchMovieDataFromApiAsync(tmdbId, type);
+                movie = await FetchMovieDataFromApiAsync(tmdbId, type, cancellationToken);
                 if (movie == null)
                 {
                     return null;
@@ -182,9 +182,9 @@ namespace CineMatch.Api.Services.MovieServices
             return movie;
         }
 
-        private async Task<Movie?> FetchMovieDataFromApiAsync(int tmdbId, ContentType type)
+        private async Task<Movie?> FetchMovieDataFromApiAsync(int tmdbId, ContentType type, CancellationToken cancellationToken)
         {
-            var movieData = await _tmdbService.GetMovieDetailsAsync(tmdbId, type);
+            var movieData = await _tmdbService.GetMovieDetailsAsync(tmdbId, type, cancellationToken);
             if (movieData == null)
             {
                 return null;

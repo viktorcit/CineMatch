@@ -22,6 +22,14 @@ namespace CineMatch.Api.Midlleware
             {
                 await _next(context);
             }
+            catch (OperationCanceledException)
+                when (context.RequestAborted.IsCancellationRequested)
+            {
+                _logger.LogInformation("Request aborted. Method: {Method}, Path: {Path}, TraceId: {TraceId}",
+                    context.Request.Method,
+                    context.Request.Path,
+                    context.TraceIdentifier);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Processing error {Method} {Path}. TraceId: {TraceId}",
@@ -47,21 +55,21 @@ namespace CineMatch.Api.Midlleware
             {
                 DbUpdateConcurrencyException => StatusCodes.Status409Conflict,
                 DbUpdateException => StatusCodes.Status500InternalServerError,
+                OperationCanceledException
+                { InnerException: TimeoutException } => StatusCodes.Status504GatewayTimeout,
                 _ => StatusCodes.Status500InternalServerError
             };
         }
 
         private static BaseResponseDto CreateErrorResponse(int statusCode)
         {
-            switch (statusCode)
+            return statusCode switch
             {
-                case StatusCodes.Status409Conflict:
-                    return ResponseFactory.Fail(ErrorType.Conflict, ResponseMessages.Conflict);
-                case StatusCodes.Status500InternalServerError:
-                    return ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
-                default:
-                    return ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
-            }
+                StatusCodes.Status409Conflict => ResponseFactory.Fail(ErrorType.Conflict, ResponseMessages.Conflict),
+                StatusCodes.Status500InternalServerError => ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError),
+                StatusCodes.Status503ServiceUnavailable => ResponseFactory.Fail(ErrorType.Timeout, "An upstream service did not respond in time."),
+                _ => ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError),
+            };
         }
     }
 }

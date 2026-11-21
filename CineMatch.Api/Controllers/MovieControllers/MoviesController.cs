@@ -38,7 +38,6 @@ namespace CineMatch.Api.Controllers.MovieControllers
             _logger.LogInformation("попытка получить фильм по id");
             if (id <= 0)
             {
-                _logger.LogInformation("Некорректный id");
                 return NotFound("Movie not found");
             }
             var result = await _movieService.GetMovieByIdAsync(id);
@@ -50,10 +49,10 @@ namespace CineMatch.Api.Controllers.MovieControllers
         }
 
         [HttpPost("search-by-url")]
-        public async Task<ActionResult<MovieInfo>> GetMovieByUrlAsync([FromBody] SearchMovieRequest dto)
+        public async Task<ActionResult<MovieInfo>> GetMovieByUrlAsync([FromBody] SearchMovieRequest dto, CancellationToken cancellationToken)
         {
             _logger.LogInformation("попытка найти фильм по ссылке");
-            var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput);
+            var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput, cancellationToken);
 
             return result.ErrorType switch
             {
@@ -65,10 +64,10 @@ namespace CineMatch.Api.Controllers.MovieControllers
         }
 
         [HttpPost("search")]
-        public async Task<ActionResult<List<MovieInfo>>> GetMovieBySearchAsync([FromBody] SearchMovieRequest dto)
+        public async Task<ActionResult<List<MovieInfo>>> GetMovieBySearchAsync([FromBody] SearchMovieRequest dto, CancellationToken cancellationToken)
         {
             _logger.LogInformation("попытка найти фильм по названию");
-            var result = await _movieSearchService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year);
+            var result = await _movieSearchService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year, cancellationToken);
 
 
             return result.ErrorType switch
@@ -82,11 +81,11 @@ namespace CineMatch.Api.Controllers.MovieControllers
 
         [Authorize]
         [HttpPost("save")]
-        public async Task<ActionResult> SaveMovieAsync([FromBody] SaveMovieRequestDto dto)
+        public async Task<ActionResult> SaveMovieAsync([FromBody] SaveMovieRequestDto dto, CancellationToken cancellationToken)
         {
             var userId = User.GetUserId();
             _logger.LogInformation("попытка добавить фильм в базу данных");
-            var result = await _movieService.SaveMovieAsync(dto.TmdbId, dto.Type, userId);
+            var result = await _movieService.SaveMovieAsync(dto.TmdbId, dto.Type, userId, cancellationToken);
 
             return result.ErrorType switch
             {
