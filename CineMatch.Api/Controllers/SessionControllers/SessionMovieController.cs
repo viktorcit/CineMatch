@@ -23,12 +23,12 @@ namespace CineMatch.Api.Controllers.SessionControllers
 
         [Authorize]    
         [HttpGet("movies/{sessionCode}")]
-        public async Task<ActionResult<List<MovieInfo>>> GetFilmsOfSessionAsync(string sessionCode)
+        public async Task<ActionResult<List<MovieInfo>>> GetFilmsOfSessionAsync(string sessionCode, CancellationToken cancellationToken)
         {
             var userId = User.GetUserId();
 
             _logger.LogInformation("получение фильмов сессии");
-            var result = await _sessionMovieService.GetFilmsOfSessionAsync(sessionCode, userId);
+            var result = await _sessionMovieService.GetFilmsOfSessionAsync(sessionCode, userId, cancellationToken);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -38,12 +38,12 @@ namespace CineMatch.Api.Controllers.SessionControllers
         }
 
         [HttpGet("matched/{sessionCode}")]
-        public async Task<ActionResult<List<MovieInfo>>> GetMatchedFilmsOfSessionAsync(string sessionCode)
+        public async Task<ActionResult<List<MovieInfo>>> GetMatchedFilmsOfSessionAsync(string sessionCode, CancellationToken cancellationToken)
         {
             var userId = User.GetUserId();
 
             _logger.LogInformation("получение совпадающих фильмов сессии");
-            var result = await _sessionMovieService.GetMatchedInSessionMovieAsync(sessionCode, userId);
+            var result = await _sessionMovieService.GetMatchedInSessionMovieAsync(sessionCode, userId, cancellationToken);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),
@@ -53,12 +53,12 @@ namespace CineMatch.Api.Controllers.SessionControllers
         }
 
         [HttpGet("random-film/{sessionCode}")]
-        public async Task<ActionResult<MovieInfo>> GetRandomMatchedFilmAsync(string sessionCode)
+        public async Task<ActionResult<MovieInfo>> GetRandomMatchedFilmAsync(string sessionCode, CancellationToken cancellationToken)
         {
             var userId = User.GetUserId();
 
             _logger.LogInformation("получение случайного фильма сессии");
-            var result = await _sessionMovieService.GetRandomMatchedFilmAsync(sessionCode, userId);
+            var result = await _sessionMovieService.GetRandomMatchedFilmAsync(sessionCode, userId, cancellationToken);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),

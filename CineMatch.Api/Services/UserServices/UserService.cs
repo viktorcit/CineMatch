@@ -22,25 +22,25 @@ namespace CineMatch.Api.Services.UserServices
         }
 
 
-        public async Task<BaseResponseDto> GetUserInfo(string userId)
+        public async Task<BaseResponseDto<AdminUserInfoResponseDto>> GetUserInfo(string userId, CancellationToken cancellationToken)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
-                return ResponseFactory.Fail(ErrorType.NotFound);
+                return ResponseFactory.Fail<AdminUserInfoResponseDto>(ErrorType.NotFound);
             }
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            var sessionParticipant = await _db.SessionParticipants.FirstOrDefaultAsync(sp => sp.UserId == user.Id);
+            var sessionParticipant = await _db.SessionParticipants.FirstOrDefaultAsync(sp => sp.UserId == user.Id, cancellationToken);
             if (sessionParticipant != null)
             {
-                var session = await _db.Sessions.FindAsync(sessionParticipant.SessionId)
+                var session = await _db.Sessions.FindAsync([sessionParticipant.SessionId], cancellationToken)
                     ?? throw new InvalidDataException("Session not found for the participant.");
 
                 var sessionMoviesIds = await _db.SessionMovies
                     .Where(sm => sm.SessionId == session.Id)
                     .Select(sm => sm.MovieId)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 var response = new AdminUserInfoResponseDto
                 {
@@ -53,6 +53,7 @@ namespace CineMatch.Api.Services.UserServices
                     SessionId = session.Id,
                     SessionMovieId = sessionMoviesIds
                 };
+                return ResponseFactory.Ok(response);
             }
 
             var response2 = new AdminUserInfoResponseDto

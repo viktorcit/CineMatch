@@ -28,11 +28,13 @@ namespace CineMatch.Api.Services.UserServices
             {
                 return ResponseFactory.Fail<PrivateUserResponseDto>(ErrorType.Unauthorized, "Account not found");
             }
+
             var response = new PrivateUserResponseDto
             {
                 UserId = user.Id,
                 UserName = user.UserName
             };
+
             return ResponseFactory.Ok(response);
         }
 
