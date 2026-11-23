@@ -40,7 +40,6 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IVoteService, VoteService>();
 builder.Services.AddScoped<ISessionMovieService, SessionMovieService>();
-builder.Services.AddScoped<ITmdbService, TmdbService>();
 
 builder.Services.AddSingleton<JwtSecurityTokenHandler>();
 
@@ -59,6 +58,13 @@ builder.Services.AddCors(options =>
 builder.Services.AddRouting(options =>
 {
     options.LowercaseUrls = true;
+});
+
+builder.Services.AddHttpClient<ITmdbService, TmdbService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+
+    client.Timeout = TimeSpan.FromSeconds(10);
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
