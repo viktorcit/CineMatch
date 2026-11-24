@@ -22,9 +22,10 @@ namespace CineMatch.Api.Services.MovieServices
 
         public async Task<BaseResponseDto<MovieInfo>> GetMovieByUrlAsync(string inputUrl, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMovieByUrlAsync" });
             if (string.IsNullOrWhiteSpace(inputUrl))
             {
-                _logger.LogInformation("поле ссылки пусто");
+                _logger.LogDebug("Operation rejected: {Reason}", "Input cannot be null.");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, "Input cannot be null.");
             }
             if (!IsTmdbLink(inputUrl))
@@ -37,38 +38,39 @@ namespace CineMatch.Api.Services.MovieServices
                 var movieId = ExtractIdFromLink(inputUrl);
                 if (movieId == 0)
                 {
-                    _logger.LogInformation("неправильная ссылка");
                     return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
                 var contentType = ContentTypeCheck(inputUrl);
                 if (contentType == ContentType.Unknown)
                 {
-                    _logger.LogInformation("неправильная ссылка");
                     return ResponseFactory.Fail<MovieInfo>(ErrorType.BadRequest, ResponseMessages.InvalidTmdbUrl);
                 }
 
                 var movieDetails = await _tmdbService.GetMovieDetailsAsync(movieId, contentType, cancellationToken);
                 if (movieDetails == null)
                 {
-                    _logger.LogInformation("фильм не найден");
+                    _logger.LogDebug("Operation rejected: {Reason}", "Movie not found");
                     return ResponseFactory.Fail<MovieInfo>(ErrorType.NotFound, "Movie not found");
                 }
-                _logger.LogInformation("фильм найден");
+
+                _logger.LogDebug("Found TMDb item {TmdbId} ({ContentType}) from link", movieId, contentType);
                 return ResponseFactory.Ok(movieDetails);
             }
             catch (Exception ex)
             {
-                _logger.LogInformation($"An error occurred during get movie by id: {ex.Message}");
+                _logger.Log(ex is OperationCanceledException && cancellationToken.IsCancellationRequested ? LogLevel.Debug : LogLevel.Error, ex, "Movie lookup by TMDb link failed");
+
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }
 
         public async Task<BaseResponseDto<List<MovieInfo>>> GetMovieBySearchAsync(string mainInput, ContentType inputContentType, int? inputYear, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMovieBySearchAsync" });
             if (string.IsNullOrWhiteSpace(mainInput))
             {
-                _logger.LogInformation("Поле ввода пустое");
+                _logger.LogDebug("Operation rejected: {Reason}", "Input cannot be null");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.BadRequest, "Input cannot be null");
             }
 
@@ -77,15 +79,17 @@ namespace CineMatch.Api.Services.MovieServices
                 var movieDetails = await _tmdbService.GetMovieDetailsFromSearchAsync(mainInput, inputContentType, inputYear, cancellationToken);
                 if (movieDetails == null)
                 {
-                    _logger.LogInformation("фильм не найден");
+                    _logger.LogDebug("Operation rejected: {Reason}", "Movie not found.");
                     return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.BadRequest, "Movie not found.");
                 }
-                _logger.LogInformation("фильм найден");
+
+                _logger.LogDebug("Movie search returned {MovieCount} results for content type {ContentType} and year {Year}", movieDetails.Count, inputContentType, inputYear);
                 return ResponseFactory.Ok(movieDetails);
             }
             catch (Exception ex)
             {
-                _logger.LogInformation($"An error occurred while searching for the movie: {ex.Message}");
+                _logger.Log(ex is OperationCanceledException && cancellationToken.IsCancellationRequested ? LogLevel.Debug : LogLevel.Error, ex, "Movie search failed for content type {ContentType} and year {Year}", inputContentType, inputYear);
+
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
         }

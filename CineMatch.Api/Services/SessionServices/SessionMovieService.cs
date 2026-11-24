@@ -23,15 +23,18 @@ namespace CineMatch.Api.Services.SessionServices
 
         public async Task<BaseResponseDto<List<MovieInfo>>> GetFilmsOfSessionAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetFilmsOfSessionAsync", ["UserId"] = userId });
             var session = UserPartisipating(sessionCode, userId, cancellationToken);
             if (session == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "Session not found for this code, or you are not a participant.");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
             var sessionMovies = await FindSessionMovies(session.Id, cancellationToken);
             if (sessionMovies == null || sessionMovies.Count == 0)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "No movies found for this session");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No movies found for this session");
             }
 
@@ -40,21 +43,25 @@ namespace CineMatch.Api.Services.SessionServices
 
         public async Task<BaseResponseDto<List<MovieInfo>>> GetMatchedInSessionMovieAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMatchedInSessionMovieAsync", ["UserId"] = userId });
             var session = UserPartisipating(sessionCode, userId, cancellationToken);
             if (session == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "Session not found for this code, or you are not a participant.");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
             var matchedMovieIds = await GetMatchedMoviesIds(session.Id, cancellationToken);
             if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "No matched movies found for this session");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
             var matchedMovies = await CreateMatchedMoviesList(matchedMovieIds, cancellationToken);
             if (matchedMovies == null || matchedMovies.Count == 0)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "No matched movies found for this session");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
@@ -63,21 +70,25 @@ namespace CineMatch.Api.Services.SessionServices
 
         public async Task<BaseResponseDto<MovieInfo>> GetRandomMatchedFilmAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetRandomMatchedFilmAsync", ["UserId"] = userId });
             var session = UserPartisipating(sessionCode, userId, cancellationToken);
             if (session == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "Session not found for this code, or you are not a participant.");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
             var matchedMovieIds = await GetMatchedMoviesIds(session.Id, cancellationToken);
             if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "No matched movies found for this session");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
             var randomMovie = await RandomMovie(matchedMovieIds, cancellationToken);
             if (randomMovie == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "Matched movie not found");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.NotFound, "Matched movie not found");
             }
 
@@ -88,14 +99,17 @@ namespace CineMatch.Api.Services.SessionServices
 
         public async Task<BaseResponseDto> DeleteMovieFromSessionAsync(int movieId, string userId)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "DeleteMovieFromSessionAsync", ["UserId"] = userId });
             var sessionParticipant = await _db.SessionParticipants.FirstOrDefaultAsync(sp => sp.UserId == userId);
             if (sessionParticipant == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "You are not a participant in any session.");
                 return ResponseFactory.Fail(ErrorType.Conflict, "You are not a participant in any session.");
             }
             var sessionMovie = await _db.SessionMovies.FirstOrDefaultAsync(m => m.Id == movieId && m.SessionId == sessionParticipant.SessionId);
             if (sessionMovie == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "Movie not found from this session.");
                 return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found from this session.");
             }
 
@@ -106,9 +120,10 @@ namespace CineMatch.Api.Services.SessionServices
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while deleting the movie from the session.");
+                _logger.LogError(ex, "Failed to remove session movie {SessionMovieId} from session {SessionId} for user {UserId}", movieId, sessionParticipant.SessionId, userId);
                 return ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
             }
+            _logger.LogInformation("Session movie {SessionMovieId} removed from session {SessionId} by user {UserId}", movieId, sessionParticipant.SessionId, userId);
             return ResponseFactory.Ok("Movie retrieved successfully.");
         }
 

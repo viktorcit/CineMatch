@@ -27,14 +27,15 @@ namespace CineMatch.Api.Services.MovieServices
 
         public async Task<BaseResponseDto> SaveMovieAsync(int tmdbId, ContentType type, string userId, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Сохранение фильма");
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "SaveMovieAsync", ["UserId"] = userId });
+
 
             var SessionParticipant = await _db.SessionParticipants
                 .FirstOrDefaultAsync(sp => sp.UserId == userId, 
                 cancellationToken);
             if (SessionParticipant == null)
             {
-                _logger.LogInformation("Сессия клиента не найдена для Client ID {ClientId} либо был завершена", userId);
+                _logger.LogDebug("Operation rejected: {Reason}", "You are not in any session and cannot save movies or session closed.");
                 return ResponseFactory.Fail(ErrorType.NotFound, "You are not in any session and cannot save movies or session closed.");
             }
 
@@ -42,6 +43,7 @@ namespace CineMatch.Api.Services.MovieServices
                 cancellationToken);
             if (session == null)
             {
+                _logger.LogDebug("Operation rejected: {Reason}", "Session not found for the client.");
                 return ResponseFactory.Fail(ErrorType.NotFound, "Session not found for the client.");
             }
 
@@ -53,20 +55,20 @@ namespace CineMatch.Api.Services.MovieServices
                     cancellationToken);
                 if (movieExistSession != null)
                 {
-                    _logger.LogInformation("Фильм уже добавлен в сессию и есть в базе данных");
+                    _logger.LogDebug("Operation rejected: {Reason}", "Movie with the same TMDb ID and type already exists in your session");
                     return ResponseFactory.Fail(ErrorType.Conflict, "Movie with the same TMDb ID and type already exists in your session");
                 }
                 else if(movieExistSession == null)
                 {
-                    _logger.LogInformation("Фильм уже существует в базе данных, но не добавлен в сессию. Добавляем фильм в сессию.");
                     var sessionMovie = CreateSessionMovieEntity(session, movieExists);
                     _db.SessionMovies.Add(sessionMovie);
                     await _db.SaveChangesAsync(cancellationToken);
 
+                    _logger.LogInformation("Existing movie {MovieId} added to session {SessionId} by user {UserId}", movieExists.Id, session.Id, userId);
                     return ResponseFactory.Ok("Movie has been added to the session.");
                 }
 
-                _logger.LogInformation("Фильм уже существует в базе данных");
+                _logger.LogDebug("Operation rejected: {Reason}", "Movie with the same TMDb ID and type already exists.");
                 return ResponseFactory.Fail(ErrorType.Conflict, "Movie with the same TMDb ID and type already exists.");
             }
 
@@ -75,21 +77,24 @@ namespace CineMatch.Api.Services.MovieServices
                 var movie = await GetMovieDataByIdAsync(tmdbId, type, cancellationToken);
                 if (movie == null)
                 {
+                    _logger.LogDebug("Operation rejected: {Reason}", "Movie not found with same TMDb Id");
                     return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found with same TMDb Id");
                 }
                 await AddFilmInDbAndSession(movie, session, cancellationToken);
             }
             catch (Exception ex)
             {
-                _logger.LogError("Не удалось добавить фильм в бд и сессию: {ex}", ex);
+                _logger.Log(ex is OperationCanceledException && cancellationToken.IsCancellationRequested ? LogLevel.Debug : LogLevel.Error, ex, "Failed to save TMDb item {TmdbId} ({ContentType}) in session {SessionId} for user {UserId}", tmdbId, type, session.Id, userId);
                 return ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
             }
 
+            _logger.LogInformation("TMDb item {TmdbId} ({ContentType}) saved in session {SessionId} by user {UserId}", tmdbId, type, session.Id, userId);
             return ResponseFactory.Ok("Movie saved successfully.");
         }
 
         public async Task<List<MovieInfo>> GetAllMoviesAsync(CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetAllMoviesAsync" });
             var movies = await _db.Movies
                 .Select(m => new MovieInfo
                 {
@@ -103,16 +108,17 @@ namespace CineMatch.Api.Services.MovieServices
                     Genres = m.Genres
                 }).ToListAsync(cancellationToken);
 
-            _logger.LogInformation("Получено {Count} фильмов из базы данных", movies.Count);
+            _logger.LogDebug("Read {MovieCount} movies from the catalogue", movies.Count);
             return movies;
         }
 
         public async Task<BaseResponseDto<MovieInfo>> GetMovieByIdAsync(int id)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMovieByIdAsync" });
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == id);
             if (movie == null)
             {
-                _logger.LogInformation("Фильм с ID {Id} не найден", id);
+                _logger.LogDebug("Operation rejected: {Reason}", "Movie not found.");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.NotFound, "Movie not found.");
             }
 
@@ -128,17 +134,17 @@ namespace CineMatch.Api.Services.MovieServices
                 Genres = movie.Genres
             };
 
-            _logger.LogInformation("Фильм с ID {Id}найден", movie.Id);
             return ResponseFactory.Ok(response);
         }
 
 
         public async Task<BaseResponseDto> DeleteMovieAsync(int id)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "DeleteMovieAsync" });
             var movie = await _db.Movies.FirstOrDefaultAsync(m => m.Id == id);
             if (movie == null)
             {
-                _logger.LogInformation("Фильм с ID {id} не найден", id);
+                _logger.LogDebug("Operation rejected: {Reason}", "Movie not found.");
                 return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found.");
             }
 
@@ -149,12 +155,11 @@ namespace CineMatch.Api.Services.MovieServices
             }
             catch (Exception ex)
             {
-                List<string> errorMessage = [ex.Message];
-                _logger.LogError(ex, "Ошибка при удалении фильма с ID {id}", id);
+                _logger.LogError(ex, "Failed to delete movie {MovieId} from the catalogue", id);
                 return ResponseFactory.Fail(ErrorType.ServerError, ResponseMessages.ServerError);
             }
 
-            _logger.LogInformation("Фильм с TMDb ID {id} удален", id);
+            _logger.LogInformation("Movie {MovieId} deleted from the catalogue", id);
             return ResponseFactory.Fail(ErrorType.NoContent, "Movie has been deleted.");
         }
 

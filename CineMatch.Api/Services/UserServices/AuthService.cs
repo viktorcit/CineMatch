@@ -39,9 +39,11 @@ namespace CineMatch.Api.Services.UserServices
 
         public async Task<BaseResponseDto<TokensResponseDto>> RegisterAsync(RegisterRequestDto dto)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "RegisterAsync" });
             var existingUser = await _userManager.FindByNameAsync(dto.UserName);
             if (existingUser != null)
             {
+                _logger.LogDebug("Registration rejected because the username is already registered");
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Conflict, $"User with username '{dto.UserName}' already exists.");
             }
 
@@ -52,11 +54,11 @@ namespace CineMatch.Api.Services.UserServices
                 var result = await _userManager.CreateAsync(newUser, dto.Password);
                 if (!result.Succeeded)
                 {
-                    var errorMessages = string.Join(", ", result.Errors.Select(e => e.Description));
-                    _logger.LogWarning("User registration failed for {UserName}. Errors: {Errors}", newUser.UserName, errorMessages);
+                    var errorMessages = string.Join(", ", result.Errors.Select(e => e.Code));
 
                     var errorMessagesList = result.Errors.FirstOrDefault();
                     var handlerResponse = IdentityErrorHandler.ErrorHandler(errorMessagesList);
+                    _logger.Log(handlerResponse.ErrorType == ErrorType.ServerError ? LogLevel.Error : LogLevel.Debug, "User creation rejected by Identity. Codes: {ErrorCodes}", errorMessages);
                     await transaction.RollbackAsync();
                     return ResponseFactory.Fail<TokensResponseDto>(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
                 }
@@ -64,8 +66,8 @@ namespace CineMatch.Api.Services.UserServices
                 var addToRoleResult = await _userManager.AddToRoleAsync(newUser, RolesName.User);
                 if (!addToRoleResult.Succeeded)
                 {
-                    var roleErrorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));
-                    _logger.LogWarning("Adding user {UserName} to role failed. Errors: {Errors}", newUser.UserName, roleErrorMessages);
+                    var roleErrorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Code));
+                    _logger.LogError("Registration cannot complete: assigning role {Role} to user {UserId} failed. Identity codes: {ErrorCodes}", RolesName.User, newUser.Id, roleErrorMessages);
 
                     var errorMessagesList = addToRoleResult.Errors.FirstOrDefault();
                     var handlerResponse = IdentityErrorHandler.ErrorHandler(errorMessagesList);
@@ -76,7 +78,7 @@ namespace CineMatch.Api.Services.UserServices
                 var tokens = await CreateTokens(newUser);
                 if (tokens == null)
                 {
-                    _logger.LogError("Token generation failed for user {UserName}.", newUser.UserName);
+                    _logger.LogError("Registration cannot complete: token generation failed for user {UserId}", newUser.Id);
 
                     await transaction.RollbackAsync();
                     return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
@@ -84,7 +86,7 @@ namespace CineMatch.Api.Services.UserServices
 
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("User {UserName} registered successfully.", newUser.UserName);
+                _logger.LogInformation("User {UserId} registered successfully", newUser.Id);
                 return ResponseFactory.Ok(tokens);
             }
             catch (Exception ex)
@@ -97,15 +99,18 @@ namespace CineMatch.Api.Services.UserServices
 
         public async Task<BaseResponseDto<TokensResponseDto>> LoginAsync(LoginRequestDto dto)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "LoginAsync" });
             var user = await _userManager.FindByNameAsync(dto.UserName);
             if (user == null)
             {
+                _logger.LogWarning("Sign-in rejected: account not found");
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Unauthorized, ResponseMessages.Unauthorized);
             }
 
             var signInResult = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
             if (!signInResult.Succeeded)
             {
+                _logger.LogWarning("Sign-in failed for user {UserId}. LockedOut: {LockedOut}, NotAllowed: {NotAllowed}, RequiresTwoFactor: {RequiresTwoFactor}", user.Id, signInResult.IsLockedOut, signInResult.IsNotAllowed, signInResult.RequiresTwoFactor);
                 if (signInResult.IsLockedOut)
                 {
                     return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Unauthorized, "Your account is temporarily locked. Please try again later.");
@@ -116,15 +121,18 @@ namespace CineMatch.Api.Services.UserServices
             var tokens = await CreateTokens(user);
             if (tokens == null)
             {
+                _logger.LogError("Sign-in could not issue tokens for user {UserId}", user.Id);
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
             }
 
+            _logger.LogInformation("User {UserId} signed in successfully", user.Id);
             return ResponseFactory.Ok(tokens);
         }
 
 
         public async Task<BaseResponseDto<TokensResponseDto>> RefreshUserTokensAsync(string userId, string oldRefreshToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "RefreshUserTokensAsync" });
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {      

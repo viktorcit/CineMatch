@@ -12,11 +12,13 @@ namespace CineMatch.Api.Services.UserServices
 {
     public class UserService : IUserService
     {
+        private readonly ILogger<UserService> _logger;
         private readonly AppDbContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public UserService(AppDbContext db, UserManager<ApplicationUser> userManager)
+        public UserService(AppDbContext db, UserManager<ApplicationUser> userManager, ILogger<UserService> logger)
         {
+            _logger = logger;
             _db = db;
             _userManager = userManager;
         }
@@ -24,6 +26,7 @@ namespace CineMatch.Api.Services.UserServices
 
         public async Task<BaseResponseDto<AdminUserInfoResponseDto>> GetUserInfo(string userId, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetUserInfo", ["UserId"] = userId });
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
@@ -68,6 +71,7 @@ namespace CineMatch.Api.Services.UserServices
 
         public async Task<BaseResponseDto> DeleteUser(string userId)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "DeleteUser", ["UserId"] = userId });
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
@@ -77,6 +81,7 @@ namespace CineMatch.Api.Services.UserServices
             var isAdmin = await _userManager.IsInRoleAsync(user, RolesName.Admin);
             if (isAdmin)
             {
+                _logger.LogWarning("Administrative deletion rejected: target user {UserId} has the administrator role", userId);
                 return ResponseFactory.Fail(ErrorType.Forbidden);
             }
 
@@ -85,8 +90,10 @@ namespace CineMatch.Api.Services.UserServices
             {
                 var error = result.Errors.FirstOrDefault();
                 var handlerResponse = IdentityErrorHandler.ErrorHandler(error);
+                _logger.Log(handlerResponse.ErrorType == ErrorType.ServerError ? LogLevel.Error : LogLevel.Warning, "Administrative user deletion failed for target {UserId}. Identity codes: {ErrorCodes}", userId, string.Join(", ", result.Errors.Select(e => e.Code)));
                 return ResponseFactory.Fail(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
             }
+            _logger.LogInformation("User {UserId} deleted through the administrative operation", userId);
             return ResponseFactory.Ok("Delete successfully.");
         }
 

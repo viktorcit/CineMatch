@@ -15,12 +15,10 @@ namespace CineMatch.Api.Controllers.MovieControllers
     {
         private readonly IMovieSearchService _movieSearchService;
         private readonly IMovieService _movieService;
-        private readonly ILogger<MoviesController> _logger;
 
-        public MoviesController(IMovieSearchService movieSearchService, ILogger<MoviesController> logger, IMovieService movieService)
+        public MoviesController(IMovieSearchService movieSearchService, IMovieService movieService)
         {
             _movieSearchService = movieSearchService;
-            _logger = logger;
             _movieService = movieService;
         }
 
@@ -28,7 +26,6 @@ namespace CineMatch.Api.Controllers.MovieControllers
         [HttpGet]
         public async Task<ActionResult<List<MovieInfo>>> GetAllMoviesAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("попытка получить все фильмы из базы данных");
             var result = await _movieService.GetAllMoviesAsync(cancellationToken);
             return result;
         }
@@ -36,7 +33,6 @@ namespace CineMatch.Api.Controllers.MovieControllers
         [HttpGet("{id}")]
         public async Task<ActionResult<MovieInfo>> GetMovieByIdAsync([FromRoute] int id)
         {
-            _logger.LogInformation("попытка получить фильм по id");
             if (id <= 0)
             {
                 return NotFound("Movie not found");
@@ -52,7 +48,6 @@ namespace CineMatch.Api.Controllers.MovieControllers
         [HttpPost("search-by-url")]
         public async Task<ActionResult<MovieInfo>> GetMovieByUrlAsync([FromBody] SearchMovieRequest dto, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("попытка найти фильм по ссылке");
             var result = await _movieSearchService.GetMovieByUrlAsync(dto.MainInput, cancellationToken);
 
             return result.ErrorType switch
@@ -67,7 +62,6 @@ namespace CineMatch.Api.Controllers.MovieControllers
         [HttpPost("search")]
         public async Task<ActionResult<List<MovieInfo>>> GetMovieBySearchAsync([FromBody] SearchMovieRequest dto, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("попытка найти фильм по названию");
             var result = await _movieSearchService.GetMovieBySearchAsync(dto.MainInput, dto.Type, dto.Year, cancellationToken);
 
 
@@ -85,7 +79,7 @@ namespace CineMatch.Api.Controllers.MovieControllers
         public async Task<ActionResult> SaveMovieAsync([FromBody] SaveMovieRequestDto dto, CancellationToken cancellationToken)
         {
             var userId = User.GetUserId();
-            _logger.LogInformation("попытка добавить фильм в базу данных");
+
             var result = await _movieService.SaveMovieAsync(dto.TmdbId, dto.Type, userId, cancellationToken);
 
             return result.ErrorType switch
@@ -102,10 +96,8 @@ namespace CineMatch.Api.Controllers.MovieControllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteMovieAsync(int id)
         {
-            _logger.LogInformation("попытка удалить фильм из базы данных");
             if (id <= 0)
             {
-                _logger.LogInformation("Некорректный id");
                 return NotFound("Movie not found for deletion");
             }
             var result = await _movieService.DeleteMovieAsync(id);

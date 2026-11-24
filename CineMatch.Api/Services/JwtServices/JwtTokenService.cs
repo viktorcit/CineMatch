@@ -11,11 +11,13 @@ namespace CineMatch.Api.Services.JwtServices
 {
     public class JwtTokenService : IJwtTokenService
     {
+        private readonly ILogger<JwtTokenService> _logger;
         private readonly JwtSettings _jwtSettings;
         private readonly JwtSecurityTokenHandler _tokenHandler;
 
-        public JwtTokenService(IOptions<JwtSettings> options, JwtSecurityTokenHandler tokenHandler)
+        public JwtTokenService(IOptions<JwtSettings> options, JwtSecurityTokenHandler tokenHandler, ILogger<JwtTokenService> logger)
         {
+            _logger = logger;
             _jwtSettings = options.Value;
             _tokenHandler = tokenHandler;
         }
@@ -39,6 +41,7 @@ namespace CineMatch.Api.Services.JwtServices
             var secretKey = _jwtSettings.SecretKey;
             if (string.IsNullOrWhiteSpace(secretKey))
             {
+                _logger.LogError("Access token generation failed: JWT signing key is not configured");
                 return null;
             }
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));

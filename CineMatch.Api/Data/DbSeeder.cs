@@ -6,13 +6,15 @@ namespace CineMatch.Api.Data
 {
     public class DbSeeder
     {
+        private readonly ILogger<DbSeeder> _logger;
         private readonly string _adminUsername;
         private readonly string _adminPassword;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public DbSeeder(IConfiguration config, RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager)
+        public DbSeeder(IConfiguration config, RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager, ILogger<DbSeeder> logger)
         {
+            _logger = logger;
             _adminUsername = config["AdminUsername"]
                 ?? throw new InvalidOperationException("Admin username not configured");
             _adminPassword = config["AdminPassword"]
@@ -25,6 +27,7 @@ namespace CineMatch.Api.Data
         {
             await SeedRolesAsync(_roleManager);
             await SeedAdminUserAsync(_userManager);
+            _logger.LogDebug("Database roles and administrator account verified");
         }
 
 
@@ -44,6 +47,7 @@ namespace CineMatch.Api.Data
                         var errorMessages = string.Join(", ", createRole.Errors.Select(e => e.Description));
                         throw new InvalidOperationException($"Failed added role {roleName}: {errorMessages}");
                     }
+                    _logger.LogInformation("Identity role {Role} created during database seeding", roleName);
                 }
             }
         }
@@ -79,6 +83,7 @@ namespace CineMatch.Api.Data
                     var errorMessages = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));
                     throw new InvalidOperationException($"Failed to assign admin role: {errorMessages}");
                 }
+                _logger.LogInformation("Administrator account {UserId} created and assigned its role", adminUser.Id);
                 return;
             }
             catch (Exception ex)

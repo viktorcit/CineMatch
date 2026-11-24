@@ -11,12 +11,10 @@ namespace CineMatch.Api.Controllers.SessionControllers
     [Route("api/[controller]")]
     public class SessionMovieController : ControllerBase
     {
-        private readonly ILogger<SessionMovieController> _logger;
         private readonly ISessionMovieService _sessionMovieService;
 
-        public SessionMovieController(ILogger<SessionMovieController> logger, ISessionMovieService sessionMovieService)
+        public SessionMovieController(ISessionMovieService sessionMovieService)
         {
-            _logger = logger;
             _sessionMovieService = sessionMovieService;
         }
 
@@ -27,7 +25,6 @@ namespace CineMatch.Api.Controllers.SessionControllers
         {
             var userId = User.GetUserId();
 
-            _logger.LogInformation("получение фильмов сессии");
             var result = await _sessionMovieService.GetFilmsOfSessionAsync(sessionCode, userId, cancellationToken);
             return result.ErrorType switch
             {
@@ -42,7 +39,6 @@ namespace CineMatch.Api.Controllers.SessionControllers
         {
             var userId = User.GetUserId();
 
-            _logger.LogInformation("получение совпадающих фильмов сессии");
             var result = await _sessionMovieService.GetMatchedInSessionMovieAsync(sessionCode, userId, cancellationToken);
             return result.ErrorType switch
             {
@@ -57,7 +53,6 @@ namespace CineMatch.Api.Controllers.SessionControllers
         {
             var userId = User.GetUserId();
 
-            _logger.LogInformation("получение случайного фильма сессии");
             var result = await _sessionMovieService.GetRandomMatchedFilmAsync(sessionCode, userId, cancellationToken);
             return result.ErrorType switch
             {

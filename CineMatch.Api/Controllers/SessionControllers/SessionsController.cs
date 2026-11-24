@@ -12,12 +12,10 @@ namespace CineMatch.Api.Controllers.SessionControllers
     [Route("api/[controller]")]
     public class SessionsController : ControllerBase
     {
-        private readonly ILogger<SessionsController> _logger;
         private readonly ISessionService _sessionService;
 
-        public SessionsController(ILogger<SessionsController> logger, ISessionService sessionService)
+        public SessionsController(ISessionService sessionService)
         {
-            _logger = logger;
             _sessionService = sessionService;
         }
 
@@ -28,7 +26,7 @@ namespace CineMatch.Api.Controllers.SessionControllers
         public async Task<ActionResult<SessionResponseDto>> CreateSessionAsync()
         {
             var userId = User.GetUserId();
-            _logger.LogInformation("создание сессии");
+
             var result = await _sessionService.CreateSessionAsync(userId);
             return result.ErrorType switch
             {
@@ -42,7 +40,7 @@ namespace CineMatch.Api.Controllers.SessionControllers
         public async Task<ActionResult> JoinToSessionAsync(JoinSessionRequestDto dto)
         {
             var userId = User.GetUserId();
-            _logger.LogInformation("присоединение к сессии");
+
             var result = await _sessionService.JoinToSessionAsync(dto.Code, userId);
             return result.ErrorType switch
             {
@@ -56,7 +54,7 @@ namespace CineMatch.Api.Controllers.SessionControllers
         public async Task<ActionResult> LeaveSessionAsync()
         {
             var userId = User.GetUserId();
-            _logger.LogInformation("покинуть сессию");
+
             var result = await _sessionService.LeaveSessionAsync(userId);
             return result.ErrorType switch
             {
@@ -71,7 +69,7 @@ namespace CineMatch.Api.Controllers.SessionControllers
         public async Task<ActionResult> EndSessionAsync()
         {
             var userId = User.GetUserId();
-            _logger.LogInformation("завершить сессию");
+
             var result = await _sessionService.EndSessionAsync(userId);
             return result.ErrorType switch
             {

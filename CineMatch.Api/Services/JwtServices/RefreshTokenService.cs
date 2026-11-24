@@ -8,20 +8,24 @@ namespace CineMatch.Api.Services.JwtServices
 {
     public class RefreshTokenService : IRefreshTokenService
     {
+        private readonly ILogger<RefreshTokenService> _logger;
         private readonly AppDbContext _db;
 
 
-        public RefreshTokenService(AppDbContext db)
+        public RefreshTokenService(AppDbContext db, ILogger<RefreshTokenService> logger)
         {
+            _logger = logger;
             _db = db;
         }
 
 
         public async Task<string?> RefreshToken(string oldRefreshToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "RefreshToken" });
             var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == oldRefreshToken);
             if (storedToken == null || storedToken.ExpiresAt < DateTime.UtcNow || storedToken.RevokedAt != null)
             {
+                _logger.LogWarning("Refresh rejected: token is {Reason}", storedToken == null ? "unknown" : storedToken.RevokedAt != null ? "revoked" : "expired");
                 return null;
             }
 
@@ -32,11 +36,13 @@ namespace CineMatch.Api.Services.JwtServices
             _db.RefreshTokens.Update(storedToken);
             await _db.SaveChangesAsync();
 
+            _logger.LogDebug("Refresh token rotated for user {UserId}", storedToken.UserId);
             return newRefreshToken;
         }
 
         public async Task<string> CreateRefreshToken(string userId)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "CreateRefreshToken", ["UserId"] = userId });
             var newRefreshToken = await GenerateUniqueRefreshToken();
             var refreshTokenEntity = CreateRefreshTokenEntity(userId, newRefreshToken);
             _db.RefreshTokens.Add(refreshTokenEntity);

@@ -9,11 +9,13 @@ namespace CineMatch.Api.Services.MovieServices
 {
     public class TmdbService : ITmdbService
     {
+        private readonly ILogger<TmdbService> _logger;
         private readonly HttpClient _httpClient;
         private readonly string _tmdbApiToken;
 
-        public TmdbService(HttpClient httpClient, IConfiguration config)
+        public TmdbService(HttpClient httpClient, IConfiguration config, ILogger<TmdbService> logger)
         {
+            _logger = logger;
             _httpClient = httpClient;
             _tmdbApiToken = config["Tmdb:ApiToken"]
                 ?? throw new InvalidOperationException("TMDb token not configured");
@@ -21,6 +23,7 @@ namespace CineMatch.Api.Services.MovieServices
 
         public async Task<MovieInfo?> GetMovieDetailsAsync(int tmdbId, ContentType type, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMovieDetailsAsync" });
             var url = $"https://api.themoviedb.org/3/{type}/{tmdbId}?language=ru-RU";
 
             var response = await SendRequest(url, cancellationToken);
@@ -40,6 +43,7 @@ namespace CineMatch.Api.Services.MovieServices
 
         public async Task<List<MovieInfo>?> GetMovieDetailsFromSearchAsync(string title, ContentType type, int? year, CancellationToken cancellationToken)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMovieDetailsFromSearchAsync" });
             var searchResult = new List<SearchResult>();
             if (type != ContentType.Unknown)
             {
@@ -141,6 +145,8 @@ namespace CineMatch.Api.Services.MovieServices
             var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
+                var level = response.StatusCode == System.Net.HttpStatusCode.NotFound ? LogLevel.Debug : LogLevel.Warning;
+                _logger.Log(level, "TMDb request to {Endpoint} returned HTTP {StatusCode}", new Uri(url).AbsolutePath, (int)response.StatusCode);
                 return null;
             }
             return response;

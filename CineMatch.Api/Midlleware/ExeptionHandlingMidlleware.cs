@@ -18,6 +18,7 @@ namespace CineMatch.Api.Midlleware
 
         public async Task InvokeAsync(HttpContext context)
         {
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["TraceId"] = context.TraceIdentifier });
             try
             {
                 await _next(context);
@@ -25,16 +26,16 @@ namespace CineMatch.Api.Midlleware
             catch (OperationCanceledException)
                 when (context.RequestAborted.IsCancellationRequested)
             {
-                _logger.LogInformation("Request aborted. Method: {Method}, Path: {Path}, TraceId: {TraceId}",
+                _logger.LogDebug("Request aborted. Method: {Method}, Path: {Endpoint}, TraceId: {TraceId}",
                     context.Request.Method,
-                    context.Request.Path,
+                    context.GetEndpoint()?.DisplayName ?? "Unmatched request",
                     context.TraceIdentifier);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Processing error {Method} {Path}. TraceId: {TraceId}",
+                _logger.Log(ex is DbUpdateConcurrencyException ? LogLevel.Warning : LogLevel.Error, ex, "Request failed: {Method} {Endpoint}. TraceId: {TraceId}",
                     context.Request.Method,
-                    context.Request.Path,
+                    context.GetEndpoint()?.DisplayName ?? "Unmatched request",
                     context.TraceIdentifier);
 
                 if (context.Response.HasStarted)

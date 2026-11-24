@@ -85,7 +85,7 @@ try
 }
 catch (Exception ex)
 {
-    logger.LogError("Runtime error during seed execution {ex}", ex);
+    logger.LogCritical(ex, "Application startup failed during database seeding");
     throw;
 }
 
@@ -104,5 +104,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-logger.LogInformation("Проект запущен");
+app.Lifetime.ApplicationStarted.Register(() => logger.LogInformation("CineMatch API started in {Environment}", app.Environment.EnvironmentName));
+app.Lifetime.ApplicationStopping.Register(() => logger.LogInformation("CineMatch API is stopping"));
 app.Run();
