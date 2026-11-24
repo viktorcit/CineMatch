@@ -26,7 +26,7 @@ namespace CineMatch.Api.Services.MovieServices
             using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMovieDetailsAsync" });
             var url = $"https://api.themoviedb.org/3/{type}/{tmdbId}?language=ru-RU";
 
-            var response = await SendRequest(url, cancellationToken);
+            var response = await SendRequestAsync(url, cancellationToken);
             if (response == null)
             {
                 return null;
@@ -113,7 +113,7 @@ namespace CineMatch.Api.Services.MovieServices
                     : $"&first_air_date_year={inputYear}";
             }
 
-            var response = await SendRequest(url, cancellationToken);
+            var response = await SendRequestAsync(url, cancellationToken);
             if (response == null)
             {
                 return null;
@@ -137,7 +137,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private static methods
-        private async Task<HttpResponseMessage?> SendRequest(string url, CancellationToken cancellationToken)
+        private async Task<HttpResponseMessage?> SendRequestAsync(string url, CancellationToken cancellationToken)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tmdbApiToken);

@@ -24,14 +24,14 @@ namespace CineMatch.Api.Services.SessionServices
         public async Task<BaseResponseDto<List<MovieInfo>>> GetFilmsOfSessionAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
             using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetFilmsOfSessionAsync", ["UserId"] = userId });
-            var session = UserPartisipating(sessionCode, userId, cancellationToken);
+            var session = await UserPartisipatingAsync(sessionCode, userId, cancellationToken);
             if (session == null)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "Session not found for this code, or you are not a participant.");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
-            var sessionMovies = await FindSessionMovies(session.Id, cancellationToken);
+            var sessionMovies = await FindSessionMoviesAsync(session.Id, cancellationToken);
             if (sessionMovies == null || sessionMovies.Count == 0)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "No movies found for this session");
@@ -44,21 +44,21 @@ namespace CineMatch.Api.Services.SessionServices
         public async Task<BaseResponseDto<List<MovieInfo>>> GetMatchedInSessionMovieAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
             using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetMatchedInSessionMovieAsync", ["UserId"] = userId });
-            var session = UserPartisipating(sessionCode, userId, cancellationToken);
+            var session = await UserPartisipatingAsync(sessionCode, userId, cancellationToken);
             if (session == null)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "Session not found for this code, or you are not a participant.");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
-            var matchedMovieIds = await GetMatchedMoviesIds(session.Id, cancellationToken);
+            var matchedMovieIds = await GetMatchedMoviesIdsAsync(session.Id, cancellationToken);
             if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "No matched movies found for this session");
                 return ResponseFactory.Fail<List<MovieInfo>>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
-            var matchedMovies = await CreateMatchedMoviesList(matchedMovieIds, cancellationToken);
+            var matchedMovies = await CreateMatchedMoviesListAsync(matchedMovieIds, cancellationToken);
             if (matchedMovies == null || matchedMovies.Count == 0)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "No matched movies found for this session");
@@ -71,21 +71,21 @@ namespace CineMatch.Api.Services.SessionServices
         public async Task<BaseResponseDto<MovieInfo>> GetRandomMatchedFilmAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
             using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetRandomMatchedFilmAsync", ["UserId"] = userId });
-            var session = UserPartisipating(sessionCode, userId, cancellationToken);
+            var session = await UserPartisipatingAsync(sessionCode, userId, cancellationToken);
             if (session == null)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "Session not found for this code, or you are not a participant.");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.Conflict, "Session not found for this code, or you are not a participant.");
             }
 
-            var matchedMovieIds = await GetMatchedMoviesIds(session.Id, cancellationToken);
+            var matchedMovieIds = await GetMatchedMoviesIdsAsync(session.Id, cancellationToken);
             if (matchedMovieIds == null || matchedMovieIds.Count == 0)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "No matched movies found for this session");
                 return ResponseFactory.Fail<MovieInfo>(ErrorType.NoContent, "No matched movies found for this session");
             }
 
-            var randomMovie = await RandomMovie(matchedMovieIds, cancellationToken);
+            var randomMovie = await RandomMovieAsync(matchedMovieIds, cancellationToken);
             if (randomMovie == null)
             {
                 _logger.LogDebug("Operation rejected: {Reason}", "Matched movie not found");
@@ -128,7 +128,7 @@ namespace CineMatch.Api.Services.SessionServices
         }
 
         //private methods
-        private async Task<List<MovieInfo>> FindSessionMovies(int sessionId, CancellationToken cancellationToken)
+        private async Task<List<MovieInfo>> FindSessionMoviesAsync(int sessionId, CancellationToken cancellationToken)
         {
             var sessionMovies = await _db.SessionMovies
                 .Where(sm => sm.SessionId == sessionId)
@@ -146,7 +146,7 @@ namespace CineMatch.Api.Services.SessionServices
             return sessionMovies;
         }
 
-        private async Task<List<int>> GetMatchedMoviesIds(int sessionId, CancellationToken cancellationToken)
+        private async Task<List<int>> GetMatchedMoviesIdsAsync(int sessionId, CancellationToken cancellationToken)
         {
             var matchedMovieIds = await _db.Votes
                 .Where(v => v.SessionId == sessionId && v.IsLiked)
@@ -157,7 +157,7 @@ namespace CineMatch.Api.Services.SessionServices
             return matchedMovieIds;
         }
 
-        private async Task<List<MovieInfo>> CreateMatchedMoviesList(List<int> matchedMovieIds, CancellationToken cancellationToken)
+        private async Task<List<MovieInfo>> CreateMatchedMoviesListAsync(List<int> matchedMovieIds, CancellationToken cancellationToken)
         {
             List<MovieInfo> matchedMovies = [];
 
@@ -182,7 +182,7 @@ namespace CineMatch.Api.Services.SessionServices
             return matchedMovies;
         }
 
-        private async Task<Session?> UserPartisipating(string sessionCode, string userId, CancellationToken cancellationToken)
+        private async Task<Session?> UserPartisipatingAsync(string sessionCode, string userId, CancellationToken cancellationToken)
         {
             var session = await _db.Sessions.FirstOrDefaultAsync(s => s.Code == sessionCode, cancellationToken);
             if (session == null)
@@ -198,7 +198,7 @@ namespace CineMatch.Api.Services.SessionServices
             return session;
         }
 
-        private async Task<Movie?> RandomMovie(List<int> matchedMovieIds, CancellationToken cancellationToken)
+        private async Task<Movie?> RandomMovieAsync(List<int> matchedMovieIds, CancellationToken cancellationToken)
         {
             var random = new Random();
             var randomMovieId = matchedMovieIds[random.Next(matchedMovieIds.Count)];

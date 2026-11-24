@@ -19,9 +19,9 @@ namespace CineMatch.Api.Services.JwtServices
         }
 
 
-        public async Task<string?> RefreshToken(string oldRefreshToken)
+        public async Task<string?> RefreshTokenAsync(string oldRefreshToken)
         {
-            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "RefreshToken" });
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "RefreshTokenAsync" });
             var storedToken = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == oldRefreshToken);
             if (storedToken == null || storedToken.ExpiresAt < DateTime.UtcNow || storedToken.RevokedAt != null)
             {
@@ -29,7 +29,7 @@ namespace CineMatch.Api.Services.JwtServices
                 return null;
             }
 
-            var newRefreshToken = await GenerateUniqueRefreshToken();
+            var newRefreshToken = await GenerateUniqueRefreshTokenAsync();
             var refreshToken = CreateRefreshTokenEntity(storedToken.UserId, newRefreshToken);
             storedToken.RevokedAt = DateTime.UtcNow;
             _db.RefreshTokens.Add(refreshToken);
@@ -40,10 +40,10 @@ namespace CineMatch.Api.Services.JwtServices
             return newRefreshToken;
         }
 
-        public async Task<string> CreateRefreshToken(string userId)
+        public async Task<string> CreateRefreshTokenAsync(string userId)
         {
-            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "CreateRefreshToken", ["UserId"] = userId });
-            var newRefreshToken = await GenerateUniqueRefreshToken();
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "CreateRefreshTokenAsync", ["UserId"] = userId });
+            var newRefreshToken = await GenerateUniqueRefreshTokenAsync();
             var refreshTokenEntity = CreateRefreshTokenEntity(userId, newRefreshToken);
             _db.RefreshTokens.Add(refreshTokenEntity);
             await _db.SaveChangesAsync();
@@ -66,7 +66,7 @@ namespace CineMatch.Api.Services.JwtServices
             return refreshToken;
         }
 
-        private async Task<string> GenerateUniqueRefreshToken()
+        private async Task<string> GenerateUniqueRefreshTokenAsync()
         {
             var randomNumber = new byte[64];
 

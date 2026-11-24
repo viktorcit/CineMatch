@@ -24,9 +24,9 @@ namespace CineMatch.Api.Services.UserServices
         }
 
 
-        public async Task<BaseResponseDto<AdminUserInfoResponseDto>> GetUserInfo(string userId, CancellationToken cancellationToken)
+        public async Task<BaseResponseDto<AdminUserInfoResponseDto>> GetUserInfoAsync(string userId, CancellationToken cancellationToken)
         {
-            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetUserInfo", ["UserId"] = userId });
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "GetUserInfoAsync", ["UserId"] = userId });
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
@@ -69,9 +69,9 @@ namespace CineMatch.Api.Services.UserServices
             return ResponseFactory.Ok(response2);
         }
 
-        public async Task<BaseResponseDto> DeleteUser(string userId)
+        public async Task<BaseResponseDto> DeleteUserAsync(string userId)
         {
-            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "DeleteUser", ["UserId"] = userId });
+            using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["Operation"] = "DeleteUserAsync", ["UserId"] = userId });
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {

@@ -75,7 +75,7 @@ namespace CineMatch.Api.Services.UserServices
                     return ResponseFactory.Fail<TokensResponseDto>(handlerResponse.ErrorType, handlerResponse.ResponseMessage);
                 }
 
-                var tokens = await CreateTokens(newUser);
+                var tokens = await CreateTokensAsync(newUser);
                 if (tokens == null)
                 {
                     _logger.LogError("Registration cannot complete: token generation failed for user {UserId}", newUser.Id);
@@ -118,7 +118,7 @@ namespace CineMatch.Api.Services.UserServices
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.Unauthorized, ResponseMessages.Unauthorized);
             }
 
-            var tokens = await CreateTokens(user);
+            var tokens = await CreateTokensAsync(user);
             if (tokens == null)
             {
                 _logger.LogError("Sign-in could not issue tokens for user {UserId}", user.Id);
@@ -146,7 +146,7 @@ namespace CineMatch.Api.Services.UserServices
                 UserName = user.UserName,
                 UserRoles = userRoles.ToArray()
             };
-            var tokens = await RefreshTokens(tokensRefreshDto);
+            var tokens = await RefreshTokensAsync(tokensRefreshDto);
             if (tokens == null)
             {
                 return ResponseFactory.Fail<TokensResponseDto>(ErrorType.ServerError, ResponseMessages.ServerError);
@@ -158,9 +158,9 @@ namespace CineMatch.Api.Services.UserServices
 
 
         //private methods
-        private async Task<TokensResponseDto?> RefreshTokens(TokensRefreshInfo dto)
+        private async Task<TokensResponseDto?> RefreshTokensAsync(TokensRefreshInfo dto)
         {
-            var newRefreshToken = await _refreshTokenService.RefreshToken(dto.OldRefreshToken);
+            var newRefreshToken = await _refreshTokenService.RefreshTokenAsync(dto.OldRefreshToken);
             if (newRefreshToken == null)
             {
                 return null;
@@ -186,7 +186,7 @@ namespace CineMatch.Api.Services.UserServices
             return response;
         }
 
-        private async Task<TokensResponseDto?> CreateTokens(ApplicationUser user)
+        private async Task<TokensResponseDto?> CreateTokensAsync(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
 
@@ -203,7 +203,7 @@ namespace CineMatch.Api.Services.UserServices
                 return null;
             }
 
-            var refreshToken = await _refreshTokenService.CreateRefreshToken(user.Id);
+            var refreshToken = await _refreshTokenService.CreateRefreshTokenAsync(user.Id);
             if (refreshToken == null)
             {
                 return null;

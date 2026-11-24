@@ -6,7 +6,7 @@ namespace CineMatch.Api.Services.Interfaces.IUserServices
 {
     public interface IUserService
     {
-        Task<BaseResponseDto<AdminUserInfoResponseDto>> GetUserInfo(string userId, CancellationToken cancellationToken);
-        Task<BaseResponseDto> DeleteUser(string userId);
+        Task<BaseResponseDto<AdminUserInfoResponseDto>> GetUserInfoAsync(string userId, CancellationToken cancellationToken);
+        Task<BaseResponseDto> DeleteUserAsync(string userId);
     }
 }

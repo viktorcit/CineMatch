@@ -23,7 +23,7 @@ namespace CineMatch.Api.Controllers.UserControllers
         [HttpGet("{userId}")]
         public async Task<ActionResult<AdminUserInfoResponseDto>> GetUserInfoAsync(string userId, CancellationToken cancellationToken)
         {
-            var result = await _userService.GetUserInfo(userId, cancellationToken);
+            var result = await _userService.GetUserInfoAsync(userId, cancellationToken);
             return result.ErrorType switch
             {
                 ErrorType.NotFound => NotFound(result.ResponseMessage),
@@ -36,7 +36,7 @@ namespace CineMatch.Api.Controllers.UserControllers
         [HttpDelete("{userId}")]
         public async Task<ActionResult> DeleteUserAsync(string userId)
         {
-            var result = await _userService.DeleteUser(userId);
+            var result = await _userService.DeleteUserAsync(userId);
             return result.ErrorType switch
             {
                 ErrorType.BadRequest => BadRequest(result.ResponseMessage),

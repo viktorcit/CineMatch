@@ -80,7 +80,7 @@ namespace CineMatch.Api.Services.MovieServices
                     _logger.LogDebug("Operation rejected: {Reason}", "Movie not found with same TMDb Id");
                     return ResponseFactory.Fail(ErrorType.NotFound, "Movie not found with same TMDb Id");
                 }
-                await AddFilmInDbAndSession(movie, session, cancellationToken);
+                await AddFilmInDbAndSessionAsync(movie, session, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -164,7 +164,7 @@ namespace CineMatch.Api.Services.MovieServices
         }
 
         //private methods
-        private async Task AddFilmInDbAndSession(Movie movie, Session session, CancellationToken cancellationToken)
+        private async Task AddFilmInDbAndSessionAsync(Movie movie, Session session, CancellationToken cancellationToken)
         {
             var sessionMovie = CreateSessionMovieEntity(session, movie);
             await _db.Movies.AddAsync(movie, cancellationToken);
